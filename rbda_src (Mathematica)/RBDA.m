@@ -22,7 +22,6 @@
 BeginPackage["RBDA`"]
 
 createModelGeneral::usage="createModel[floatingBaseBool, noJoints, Units, parameters]: Create set of rules for model."
-
 rx::usage = "rx[\[Theta]]: Basic 3D rotation around x-axis. Input '\[Theta]' is an angle."
 ry::usage = "ry[\[Theta]]: Basic 3D rotation around y-axis. Input '\[Theta]' is an angle."
 rz::usage = "rz[\[Theta]]: Basic 3D rotation around z-axis. Input '\[Theta]' is an angle."
@@ -39,17 +38,15 @@ jcalc::usage = "jcalc[type,q]: Calculates Xj and S in body coordinates. Input 't
 eulerRot::usage="Function not fully tested"
 eulerJacobian::usage="Function not fully tested"
 Xpts::usage= "Xpts[pluX, pts]: Transform points between coordinate frames. 'pts' can be a vector or a list of vectors. 'pluX' is a 6x6 Plucker transformation.\[IndentingNewLine]points 'pts' are expressed in reference frame A, and pluX is a transformation from frame A to B. Output is a list of points w.r.t. frame B."
-
-forwardKinematics::usage = "forwardKinematics[model_]: Calculates the model transformations: Xup, X0, invX0, and the body Jacobians bodyJ."
+forwardKinematics::usage = "forwardKinematics[model]: Automatic process to obtain all transformations from the inertial frame {0} to {\!\(\*SubscriptBox[\(B\), \(i\)]\)}. X0\[LeftDoubleBracket]i\[RightDoubleBracket]\!\(\*SuperscriptBox[\(=\), \(i\)]\)\!\(\*SubscriptBox[\(X\), \(0\)]\). invX0\[LeftDoubleBracket]i\[RightDoubleBracket]\!\(\*SuperscriptBox[\(=\), \(0\)]\)\!\(\*SubscriptBox[\(X\), \(i\)]\). Xup\[LeftDoubleBracket]i\[RightDoubleBracket]\!\(\*SuperscriptBox[\(=\), \(i\)]\)\!\(\*SubscriptBox[\(X\), \(\[Lambda] \((i)\)\)]\). bodyJ\[LeftDoubleBracket]i\[RightDoubleBracket]=[\!\(\*SubscriptBox[\(S\), \(1\)]\),\!\(\*SubscriptBox[\(S\), \(2\)]\),...,\!\(\*SubscriptBox[\(S\), \(i\)]\),...,0]. The geometric Jacobians of Body i represents the overall motion and not only the CoM (w.r.t. local coordinates). WARNING: Requires the global qVector to be previously defined"
 DHParamsTranslator::usage="DHParamsTranslator[DHparams_?MatrixQ,floatingBaseBool_:False,floatingBaseType_:planar]:Translator of DH parameters to Plucker transformation. This function assumes the modified DH convention. The function is limited to planar open kinematic chains. The DHparams array must be in the order DHParams[[i]]:={\!\(\*SubscriptBox[\(\[Alpha]\), \(i\)]\),\!\(\*SubscriptBox[\(a\), \(i\)]\),\!\(\*SubscriptBox[\(d\), \(i\)]\),\!\(\*SubscriptBox[\(\[Upsilon]\), \(i\)]\)}."
-
 crossM::usage = "crossM[v]: Spatial cross product for MOTION vectors. The input 'v' is a twist (either 3D or 6D)."
 crossF::usage = "crossF[v]. Spatial cross product for FORCE vectors. The input 'v' is a twist (either 3D or 6D)."
 inertiaTensor::usage= "inertiaTensor[params,type,connectivity]: Calculate inertia tensor of a body"
 rbi::usage = "rbi[m,c, I]: RigidBodyInertia. m \[Epsilon] \[DoubleStruckCapitalR] is the mass, c \[Epsilon] \[DoubleStruckCapitalR]^3(\[Epsilon]\[DoubleStruckCapitalR]^2) is the position of the CoM, I\[Epsilon]\[DoubleStruckCapitalR]^(3\[Times]3)(\[Epsilon]\[DoubleStruckCapitalR]) is the rotational inertia around CoM"
-
-contactConstraints::usage="contactConstraints[contactType_:pointContactWithoutFriction]: Matrix T and S spanning the subspace of contact forces and allowed motions, respectively."
+contactConstraints::usage="contactConstraints[contactType]: Create spanning matrix T for forces and for free motions S. Assumes contact is in the y-direction of the local frame."
 constrainedSubspace::usage="constrainedSubspace[constraintsInformation_,Jacobians_,\[Beta]_]: Output={A, \[Kappa]=\!\(\*OverscriptBox[\(A\), \(\[SmallCircle]\)]\)\!\(\*OverscriptBox[\(q\), \(\[SmallCircle]\)]\), \[Kappa]stab=\[Beta]A\!\(\*OverscriptBox[\(q\), \(\[SmallCircle]\)]\)}"
+ID::usage="ID[model,q,qd,qdd,fex]: Calculates the inverse dynamics of a kinematic tree via the recursive Newton-Euler algorithm. q,qd and qdd are vectors of joint position,velocity and acceleration variables. fex is an optional argument, each row represents a wrench applied to each body (expressed w.r.t. the inerial frame). WARNING: Requires the global vectors qVector and dq to be previously defined"
 
 (*Public symbols*)
 (*Symbol[#]&/@{t,m,mass,\[ScriptL],length,w,width,h,height,r,radius,Lx,comx,Ly,comy,Lz,comz,rbInertia,jtype,jointType};*)
@@ -268,9 +265,8 @@ newPoints=Map[E.#1&,tempP]];
 
 newPoints];
 
-(*Automatic process to obtain all transformations from the inertial frame {0} to {Subscript[B, i]}. X0\[LeftDoubleBracket]i\[RightDoubleBracket]=^iSubscript[X, 0]. invX0\[LeftDoubleBracket]i\[RightDoubleBracket]=^0Subscript[X, i]. Xup\[LeftDoubleBracket]i\[RightDoubleBracket]=^iSubscript[X, \[Lambda](i)]. bodyJ\[LeftDoubleBracket]i\[RightDoubleBracket]=[Subscript[S, 1],Subscript[S, 2],...,Subscript[S, i],...,0]*)
-(*The geometric Jacobians of Bodies i represent the overall motion and not only the CoM. It is in local coordinates*)
-(*TODO: Function not reviewed lately*)
+(*forwardKinematics[model]: Automatic process to obtain all transformations from the inertial frame {0} to {Subscript[B, i]}. X0\[LeftDoubleBracket]i\[RightDoubleBracket]=^iSubscript[X, 0]. invX0\[LeftDoubleBracket]i\[RightDoubleBracket]=^0Subscript[X, i]. Xup\[LeftDoubleBracket]i\[RightDoubleBracket]=^iSubscript[X, \[Lambda](i)]. bodyJ\[LeftDoubleBracket]i\[RightDoubleBracket]=[Subscript[S, 1],Subscript[S, 2],...,Subscript[S, i],...,0]*)
+(*The geometric Jacobians of Body i represents the overall motion and not only the CoM (w.r.t. local coordinates). WARNING: Requires the global qVector to be previously defined*)
 forwardKinematics[model_]:=Module[{XJ,S,tempS,parentArray,Xup,X0,invX0,jacobian},
 
 parentArray=Global`parents/.model;
@@ -340,8 +336,6 @@ out];
 (*crossF[v]. Spatial cross product for FORCE vectors. The input 'v' is a twist (either 3D or 6D).*)
 crossF[v_]:=-Transpose[crossM[v]];
 
-(*-----------------------[2017-05-22: Reviewed until here--------------------------------------------------------------------------------------------*)
-
 (*inertiaTensor[params,type,connectivity]: Calculate inertia tensor of a body*)
 (*Assume input is an array of parameters in the form: params={mass, l, w, h, r} and type is a string (e.g., "SolidCylinder")*)
 (*l:= length along x     w:= length along y     h:= length along z      r:=radius*)
@@ -382,12 +376,13 @@ out={{I+m*Dot[c,c],-m*c[[2]],m*c[[1]]},{-m*c[[2]],m,0},{m*c[[1]],0,m}}];
 
 out];
 
-(*Create spanning matrix for forces T and for free motions S. Assumes contact is in the y-direction of the local frame*)
-contactConstraints[contactType_:"pointContactWithoutFriction"]:=Module[{T,S},
+(*contactConstraints[contactType]: Create spanning matrix T for forces and for free motions S. Assumes contact is in the y-direction of the local frame.*)
+contactConstraints[contactType_:"pointContactWithoutFriction",normalAxis_:"y"]:=Module[{T,S},
 
 Switch[contactType,
 "pointContactWithoutFriction",
-T={{0},{0},{0},{0},{1},{0}};S=Drop[1*IdentityMatrix[6],None,{5}],
+T=Switch[ToLowerCase[normalAxis],"x",{{0,0,0,1,0,0}},"y",{{0,0,0,0,1,0}},"z",{{0,0,0,0,0,1}}];T=Transpose[T];
+S=Switch[ToLowerCase[normalAxis],"x",Drop[1*IdentityMatrix[6],None,{4}],"y",Drop[1*IdentityMatrix[6],None,{5}],"z",Drop[1*IdentityMatrix[6],None,{6}]],
 "planarHardContact",
 T={{0,0},{0,0},{0,0},{1,0},{0,1},{0,0}};S=Drop[1*IdentityMatrix[6],None,{4,5}],
 _,
@@ -441,22 +436,22 @@ constraintMatrixA={};
 
 (*separate holonomic and non-holonomic constraints*)
 Do[
-constrainedBody=body/.constraintsInformation[[i]];
-contactPoint=point/.constraintsInformation[[i]];
-contactingSide=linkSide/.constraintsInformation[[i]];
-contactAngle=angle/.constraintsInformation[[i]];
+constrainedBody=Global`body/.constraintsInformation[[i]];(*Body of the robot where the constraint is located*)
+contactPoint=Global`point/.constraintsInformation[[i]];(*Contact point in body's local coordinates*)
+contactingSide=Global`linkSide/.constraintsInformation[[i]];(*Is the contact to the left or right of the link?*)
+contactAngle=Global`angle/.constraintsInformation[[i]];(*Angle that the normal direction of the contact has w.r.t. the link*)
 
-Switch[constraintType/.constraintsInformation[[i]],
+Switch[Global`constraintType/.constraintsInformation[[i]],
 "joint",
 Null(*TODO: I need the constraint at the position level*),
 "non-slippage",
-{T,S}=contactConstraints[contactModel/.constraintsInformation[[i]]];
+{T,S}=contactConstraints[Global`contactModel/.constraintsInformation[[i]]];
 AppendTo[constraintMatrixA,Transpose[T].xlt[contactPoint].Jacobians[[constrainedBody]]],
 "non-slippageWithFriction",
-{T,S}=contactConstraints[contactModel/.constraintsInformation[[i]]];
+{T,S}=contactConstraints[Global`contactModel/.constraintsInformation[[i]]];
 AppendTo[constraintMatrixA,Transpose[T].xlt[contactPoint].Jacobians[[constrainedBody]]],
 "bodyContact",
-{T,S}=contactConstraints[contactModel/.constraintsInformation[[i]]];
+{T,S}=contactConstraints[Global`contactModel/.constraintsInformation[[i]]];
 Switch[
 contactingSide,
 "left",AppendTo[constraintMatrixA,Transpose[T].pluX[rz[contactAngle],contactPoint].Jacobians[[constrainedBody]]],
@@ -472,6 +467,51 @@ derConstraintMatrixA=\!\(
 \[Kappa]stab=\[Beta]*constraintMatrixA.velocities//Simplify;
 
 output={constraintMatrixA,\[Kappa],\[Kappa]stab}]
+
+(*ID[model,q,qd,qdd,fex]: Calculates the inverse dynamics of a kinematic tree via the recursive Newton-Euler algorithm. q,qd and qdd are vectors of joint position,velocity and acceleration variables*)
+(*fex is an optional argument, each row represents a wrench applied to each body (expressed w.r.t. the inerial frame). WARNING: Requires the global vectors qVector and dq to be previously defined*)
+(*TODO: This algorithm needs confirmation. Use the basic Lagrangian formulation for confirmation*)
+ID[model_,q_,qd_,qdd_,fex_]:=Module[{dof,nBodies,tempConfiguration,XJ,S,vJ,Xup,parentArray,v,a,aGrav,f,X0,RBInertia,tau,fext=fex},
+
+dof=Global`nR/.model;
+nBodies=Global`nB/.model;
+
+tempConfiguration=Join[Thread[Global`qVector->q],Thread[Global`dq->qd]];(*This works if either q is symbolic or numeric*)
+S=Array[s,dof];
+Xup=Array[xup,nBodies];
+parentArray=Global`parents/.model;
+v=Array[vel,nBodies];
+a=Array[accel,nBodies];
+f=Array[force,nBodies];
+X0=Array[X0toi,nBodies];(*Transformations from body 0 to body i*)
+tau=Array[jtorque,dof];
+aGrav=Global`inertialGrav//.model;(*gravity in the inertial frame*)
+(*If[fext\[Equal]Null,fext=Array[0&,{6,nBodies}]];(*In case there are no external forces, create an array of zeros*)*)
+If[fext==Null,fext=Array[0&,{nBodies,6}]];(*In case there are no external forces, create an array of zeros*)
+
+Do[
+{XJ,S[[i]]}=jcalc[Subscript[Global`jtype, i]/.model,Global`qVector[[i]]]/.tempConfiguration;
+vJ=S[[i]]*qd[[i]];
+Xup[[i]]=XJ.Subscript[Global`XT, i]/.model;
+
+If[parentArray[[i]]==0,
+X0[[i]]=Xup[[i]];
+v[[i]]=vJ;
+a[[i]]=Xup[[i]].(-aGrav)+S[[i]]*qdd[[i]],
+X0[[i]]=Xup[[i]].X0[[i-1]];
+v[[i]]=Xup[[i]].v[[parentArray[[i]]]]+vJ;
+a[[i]]=Xup[[i]].a[[parentArray[[i]]]]+S[[i]]*qdd[[i]]+crossM[v[[i]]].vJ];
+
+RBInertia=Subscript[Global`rbInertia, i]//.model;
+f[[i]]=RBInertia.a[[i]]+crossF[v[[i]]].RBInertia.v[[i]]-Transpose[Inverse[X0[[i]]]].fext[[i]];
+,{i,1,nBodies}];
+
+Do[
+tau[[i]]=S[[i]].f[[i]];
+If[parentArray[[i]]!=0,f[[parentArray[[i]]]]=f[[parentArray[[i]]]]+Transpose[Xup[[i]]].f[[i]]]
+,{i,nBodies,1,-1}];
+
+tau];
 
 End[];
 
