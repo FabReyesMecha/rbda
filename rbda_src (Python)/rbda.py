@@ -25,9 +25,12 @@ plu.rx(45, unit='deg')
 ----------------------------------------------------------------------------
 Log:
 
+[2017-05-23]:   Created v0.4
+                -Created and tested HandC. It works correctly with numerical values, but not yet with symbolic ones
+                -Created FDcrb()
 [2017-05-23]:   Created v0.3   
                 -finished createModel()
-                -Created and tested forwardKinematics(), contactConstraints(), constrainedSubspace(), ID()
+                -Created and tested forwardKinematics(), contactConstraints(), constrainedSubspace(), ID(), dimChange
 [2017-05-22]:   Created v0.2
                 -clean code
                 -created and tested: jcalc(), Xpts(), inertiaTensor(), rbi()
@@ -39,13 +42,18 @@ Log:
 @author: Reyes Fabian
 """
 
-import numpy, math, copy
+import numpy
+import math
+import copy #for deepcopy
+import sympy
+from sympy.physics.vector import dynamicsymbols
+from sympy import diff, Symbol
 
 class rbdaClass():
 
     #Constructor
     def __init__(self):
-        self.__version__ = '0.2.0'
+        self.__version__ = '0.4.0'
         self._modelCreated = False
         
     #Created model
@@ -70,6 +78,8 @@ class rbdaClass():
     
     or
     
+    # robot with floating base ---------------------
+    
     bodiesParams ={
     'mass':[1,1,1],
     'lengths':[0.15,0.15,0.15],
@@ -81,9 +91,9 @@ class rbdaClass():
     'Lz':[0,0,0],
     'shapes':["Prism","Prism","Prism"],
     'jointType':['Rz','Rz'],
-    'xt':[[0,0,0],[0.15,0,0],[0.15,0,0]]
+    'xt':[[0,0,0],[0.15,0,0],[0.15,0,0]],
+    'gravityAxis':'y'
     }
-    
     
     plu.createModel(True, 2, '[kg m s]', bodiesParams, None, None)
     
@@ -109,7 +119,7 @@ class rbdaClass():
     '''        
     def createModel(self, floatingBaseBool, noJoints, units, bodiesParams, DHParameters, conInformation):
         
-        #Create deep copy of the parameters
+        # Create deep copy of the parameters
         self.model = copy.deepcopy(bodiesParams)
         
         self.model['floatingBase'] = floatingBaseBool
@@ -117,7 +127,7 @@ class rbdaClass():
         # nR: degrees of freedom (DoF) of the robot including the floating base (nFB). 
         # We have n-2 links (bodies) and n-nFB actuated joints*)
         
-        #non-actuated DoF of the floating base
+        # non-actuated DoF of the floating base
         if floatingBaseBool is True:
             self.model['nFB'] = 3
         else:
@@ -126,13 +136,32 @@ class rbdaClass():
         self.model['DoF'] = self.model['nFB'] + noJoints
         self.model['nR'] = self.model['DoF']
         
-        #How many bodies are in the system
+        # How many bodies are in the system
         if floatingBaseBool is True:
             bodies = noJoints+3#I am considering the virtual bodies too
         else:
             bodies = noJoints
         self.model['nB'] = bodies
         self.model['nA'] = noJoints
+        
+        # Create symbolic vectors
+        
+        # Option 1: Array of symbols. However, they do not depend on time
+#        self.qVector = sympy.symarray( 'qVector', self.model['DoF'] )
+#        self.dq = sympy.symarray( 'dq', self.model['DoF'] )
+
+        # Option 2: dynamic symbols and return a list
+        qVector = ['q_'+str(i).zfill(2) for i in range(self.model['DoF'])]
+        dq = ['dq_'+str(i).zfill(2) for i in range(self.model['DoF'])]
+        
+        self.qVector = dynamicsymbols(qVector)
+        self.dq = dynamicsymbols(dq)
+        
+        # Option 3: return a numpy array
+#        self.qVector = numpy.array( dynamicsymbols(qVector) )
+#        self.dq = numpy.array( dynamicsymbols(dq) )
+        
+        self.tauAct = sympy.symarray( 'tauAct', self.model['nA'] )
 
         #Decide gravity acceleration based on units
         if units.lower() == '[kg m s]':
@@ -143,9 +172,16 @@ class rbdaClass():
             print("Units not recognized. Using [kg m s]")
             self.model['g'] = 9.8
             
-        #Gravity spatial force expressed in inertial frame. 
-        #Assume it is in the y-axis, negative direction
-        self.model['inertialGrav'] = numpy.array( [0,0,0,0,-(self.model['g']),0] )
+        #Gravity spatial force expressed in inertial frame.
+        if self.model['gravityAxis'].lower() == 'x':
+            self.model['inertialGrav'] = numpy.array( [0.0,0.0,0.0,-(self.model['g']),0.0,0.0] )
+        elif self.model['gravityAxis'].lower() == 'y':
+            self.model['inertialGrav'] = numpy.array( [0.0,0.0,0.0,0.0,-(self.model['g']),0.0] )
+        elif self.model['gravityAxis'].lower() == 'z':
+            self.model['inertialGrav'] = numpy.array( [0.0,0.0,0.0,0.0,0.0,-(self.model['g'])] )
+        else:
+            print('Gravity direction not recogniez. Assuming it is in the y-axis.')
+            self.model['inertialGrav'] = numpy.array( [0.0,0.0,0.0,0.0,-(self.model['g']),0.0] )
         
         #assign parameters. If there is a floating base, then there should be two virtual (massless) links
         if floatingBaseBool is True:
@@ -194,40 +230,62 @@ class rbdaClass():
     #three-dimensional rotations
     @staticmethod
     def rx(theta, unit='rad'):
-
-        if unit.lower() == 'deg':
-            theta=math.radians(theta)
-
-        c_theta = math.cos(theta)
-        s_theta = math.sin(theta)
         
-        return numpy.array([[1,0,0],[0,c_theta,s_theta],[0,-s_theta,c_theta]])
+        if isinstance(theta, tuple(sympy.core.all_classes)):
+            c_theta = sympy.cos(theta)
+            s_theta = sympy.sin(theta)
+            
+            return sympy.Matrix([[1.0,0.0,0.0],[0.0,c_theta,s_theta],[0.0,-s_theta,c_theta]])
+
+        else:    
+            if unit.lower() == 'deg':
+                theta=math.radians(theta)
+
+            c_theta = math.cos(theta)
+            s_theta = math.sin(theta)
+        
+            return numpy.array([[1.0,0.0,0.0],[0.0,c_theta,s_theta],[0.0,-s_theta,c_theta]])
 
     @staticmethod
     def ry(theta, unit='rad'):
 
-        if unit.lower() == 'deg':
-            theta=math.radians(theta)
+        if isinstance(theta, tuple(sympy.core.all_classes)):
+            c_theta = sympy.cos(theta)
+            s_theta = sympy.sin(theta)
+            
+            return sympy.Matrix([[c_theta,0.0,-s_theta],[0.0,1.0,0.0],[s_theta,0.0,c_theta]])
 
-        c_theta = math.cos(theta)
-        s_theta = math.sin(theta)
+        else:    
+            if unit.lower() == 'deg':
+                theta=math.radians(theta)
+
+            c_theta = math.cos(theta)
+            s_theta = math.sin(theta)
         
-        return numpy.array([[c_theta,0,-s_theta],[0,1,0],[s_theta,0,c_theta]])
+            return numpy.array([[c_theta,0.0,-s_theta],[0.0,1.0,0.0],[s_theta,0.0,c_theta]])
 
     @staticmethod
     def rz(theta, unit='rad'):
 
-        if unit.lower() == 'deg':
-            theta=math.radians(theta)
+        if isinstance(theta, tuple(sympy.core.all_classes)):
+            c_theta = sympy.cos(theta)
+            s_theta = sympy.sin(theta)
+            
+            return sympy.Matrix([[c_theta,s_theta,0.0],[-s_theta,c_theta,0.0],[0.0,0.0,1.0]])
+            
+        else:    
+            if unit.lower() == 'deg':
+                theta=math.radians(theta)
 
-        c_theta = math.cos(theta)
-        s_theta = math.sin(theta)
-        
-        return numpy.array([[c_theta,s_theta,0],[-s_theta,c_theta,0],[0,0,1]])
+            c_theta = math.cos(theta)
+            s_theta = math.sin(theta)
+            
+            return numpy.array([[c_theta,s_theta,0.0],[-s_theta,c_theta,0.0],[0.0,0.0,1.0]])
 
     #general container for six-dimensional rotations. Input 'plE' is a three dimensional rotation matrix
     @staticmethod
     def rot(plE):
+        
          #change list into numpy.ndarray, if necessary
         if type(plE) == list:
             plE = numpy.array( plE )
@@ -264,7 +322,7 @@ class rbdaClass():
             r = numpy.array( r )
 
         if r.ndim == 1:#Change from vector to matrix
-            return numpy.array([[0,-r[2],r[1]],[r[2],0,-r[0]],[-r[1],r[0],0]])
+            return numpy.array([[0.0, -r[2], r[1]],[r[2], 0.0, -r[0]],[-r[1], r[0], 0.0]])
         elif r.ndim == 2:#Change from matrix to vector
             return 0.5*numpy.array([r[2,1]-r[1,2], r[0,2]-r[2,0], r[1,0]-r[0,1]])
         else:
@@ -280,7 +338,8 @@ class rbdaClass():
         zero = numpy.zeros( (3,3) )
         identity = numpy.identity(3)
 
-        return numpy.bmat( [[identity, zero],[-(self.skew(r)), identity]] )
+        #return numpy.bmat( [[identity, zero],[-(self.skew(r)), identity]] )
+        return numpy.array( numpy.bmat( [[identity, zero],[-(self.skew(r)), identity]] ) )
 
     #General Plücker transformation for MOTION vectors.
     #Inputs are a general 3D (or 6D) rotation matrix and a 3D traslation
@@ -852,7 +911,135 @@ class rbdaClass():
         else:
             print("Model not yet created. Use createModel() first.")
             return
-  
+            
+    '''
+    HandC(q,qd,fext,gravityTerms): Coefficients of the eqns. of motion.
+    gravityTerms is a boolean variable to decide if gravitational terms should be included in the output.
+    Set as False if only Coriolis/centripetal effects are desired.
+    '''
+    # FIXME: Symbolic values raise an error in Xup[i] = numpy.dot( XJ, XT ), but works outside of the function. why?
+    def HandC(self, q, qd, fext = [], gravityTerms = True):
+        
+        #change list into numpy.ndarray, if necessary
+        if type(q) == list:
+            q = numpy.array( q )
+        if type(qd) == list:
+            qd = numpy.array( qd )
+        if type(fext) == list:
+            fext = numpy.array( fext )
+            
+        # Check if we received a symbolic vector
+        _symbolic = False
+        for quantity in q:
+            if isinstance(quantity, tuple(sympy.core.all_classes)):
+                _symbolic = True
+                break
+
+        # Only continue if createModel has been called                
+        if self._modelCreated:
+            
+            dof = self.model['DoF']
+            nBodies = self.model['nB']
+         
+            Xup = numpy.zeros( (nBodies, 6, 6) )
+            S = numpy.zeros( (dof, 6) )
+            X0 = numpy.zeros( (nBodies, 6, 6) )
+            parentArray = self.model['parents']
+            
+            v = numpy.zeros( (nBodies, 6) )
+            avp = numpy.zeros( (nBodies, 6) )
+            fvp = numpy.zeros( (nBodies, 6) )
+            Cor = numpy.zeros( nBodies )
+            
+            if gravityTerms:
+                aGrav = self.model['inertialGrav']
+            else:
+                aGrav = numpy.zeros( 6 )
+                
+            if fext.size == 0:
+                fext = numpy.zeros( (nBodies, 6) )
+                
+            # Calculation of Coriolis, centrifugal, and gravitational terms
+            for i in range(nBodies):
+                
+                XJ,tempS = self.jcalc((self.model['jointType'])[i], q[i])
+                S[i] = tempS
+                vJ = S[i]*qd[i]
+                XT = (self.model['XT'])[i]
+                
+                Xup[i] = numpy.dot( XJ, XT )
+
+                #If the parent is the base
+                if parentArray[i] == -1:
+                    X0[i] = Xup[i]
+                    v[i] = vJ
+                    avp[i] = numpy.dot( Xup[i], -aGrav )
+                else:
+                    X0[i] = numpy.dot( Xup[i], X0[i-1] )
+                    v[i] = numpy.dot( Xup[i], v[parentArray[i]] ) + vJ
+                    avp[i] = numpy.dot( Xup[i], avp[parentArray[i]] ) + numpy.dot( self.crossM(v[i]), vJ )
+                
+                RBInertia = (self.model['rbInertia'])[i]
+                
+                f1 = numpy.dot( RBInertia, avp[i] )
+                f2 = reduce(numpy.dot, [self.crossF(v[i]), RBInertia, v[i]])
+                f3 = numpy.dot( numpy.transpose( numpy.linalg.inv( X0[i] ) ), fext[i] )
+                
+                fvp[i] = f1 + f2 - f3
+                
+            for i in range(nBodies-1,-1,-1):
+                Cor[i] = numpy.dot( S[i], fvp[i] )
+                
+                #If the parent is not the base
+                if parentArray[i] != -1:
+                    fvp[parentArray[i]] = fvp[parentArray[i]] + numpy.dot( numpy.transpose(Xup[i]), fvp[i] )
+            
+            IC = numpy.zeros( (nBodies, 6, 6) )
+            for i in range(nBodies):
+                IC[i] = (self.model['rbInertia'])[i]
+                
+            for i in range(nBodies-1,-1,-1):
+                if parentArray[i] != -1:
+                    IC[parentArray[i]] = IC[parentArray[i]] + reduce(numpy.dot, [numpy.transpose( Xup[i] ), IC[i], Xup[i]])
+                    
+            H = numpy.zeros( (nBodies, nBodies) )
+            for i in range(nBodies):
+                fh = numpy.dot( IC[i], S[i] )
+                H[i,i] = numpy.dot( S[i], fh )
+                j = i
+                
+                while parentArray[j] > -1:
+                    fh = numpy.dot( numpy.transpose(Xup[j]), fh )
+                    j = parentArray[j]
+                    H[i, j] = numpy.dot( S[j], fh )
+                    H[j, i] = H[i, j]
+                    
+            # If the values received where symbolic, save H and C
+            if _symbolic:
+                self.H = H
+                self.Cor = Cor
+                    
+            return H,Cor
+            
+        else:
+            print("Model not yet created. Use createModel() first.")
+            return
+    
+    '''
+    FDcrb(q, qd, tau, fext): Composite-rigid-Body algorithm. Only works with numerical values
+    '''    
+    def FDcrb(self, q, qd, tau, fext = []):
+        
+        dof = self.model['DoF']
+        nBodies = self.model['nB']
+            
+        localH, localCor = self.HandC(q, qd, fext, gravityTerms=True)
+        
+        RHS = tau -localCor
+        ddq = numpy.linalg.solve( localH, RHS )
+        
+        return ddq
+    
     #-------------------------------------------------------------------
             
     #Absolute angles (assuming open serial kinematic chain). angles is the angles of the joints
@@ -868,7 +1055,69 @@ class rbdaClass():
             absangles[i] = numpy.sum( angles[0:i+1] )
         
         return absangles
+        
+    #Change dimensions, from planar to spatial, or spatial to planar
+    def dimChange(self, quantity):
+        
+        #Change into numpy.ndarray if necessary
+        if type(quantity) == list:
+            quantity = numpy.array(quantity)
             
+        #If the dimensions is 3, then we received a planar vector (twist or wrench). Convert to spatial vector
+        if quantity.shape == (3,1):
+            quantity = numpy.insert( quantity, 0, [[0.0],[0.0]], axis=0 )
+            quantity = numpy.append(quantity, [[0.0]], axis=0)
+        elif quantity.shape == (3,):
+            quantity = numpy.insert(quantity, 0, [0.0,0.0])
+            quantity = numpy.append(quantity, 0)
+        elif quantity.shape == (1,3):
+            quantity = numpy.insert(quantity, 0, [[0.0],[0.0]], axis=1)
+            quantity = numpy.append(quantity,[[0.0]], axis=1)
+        #If the dimensions is 3by3, then we received a 3D Matrix
+        elif quantity.shape == (3,3):
+#            temp = numpy.zeros( (6,6) )
+#            temp[2:5,2:5] = quantity
+#            quantity = temp
+            quantity = numpy.insert(quantity, 0, [[0.0],[0.0]], axis=0)
+            quantity = numpy.append(quantity, numpy.zeros((1,3)), axis=0)
+            
+            quantity = numpy.insert(quantity, 0, [[0.0],[0.0]],axis=1)
+            quantity = numpy.append(quantity, numpy.transpose([[0.0,0.0,0.0,0.0,0.0,0.0]]), axis=1)
+        #If the dimensions is 6, then we received a spatial vector (twist or wrench). Convert to planar vector
+        elif quantity.shape == (6,1) or quantity.shape == (6,):
+            quantity = quantity[2:5]
+        elif quantity.shape == (1,6):
+            temp = quantity[0,2:5]
+            #quantity = numpy.reshape( quantity[2:5],(1,3) )
+            quantity = numpy.reshape( temp,(1,3) )
+        #If the dimensions is 6by6, then we received a 6D Matrix
+        elif quantity.shape == (6,6):
+            quantity = quantity[2:5,2:5]
+
+        return quantity
+    
+    # Transform a symbolic Matrix into a array (with float type values)
+    # input array is a Matrix object and 
+    #substitutions is either a tuple (oldvalue, new value) or a list fo tuples [(old, new), ..., (old, new)]
+    def symToNum(self, inputArray, substitutions):
+        
+        if type(substitutions) is not list:
+            substitutions = [substitutions]
+            
+        output = inputArray.subs( substitutions )
+        output = numpy.array( output ).astype(numpy.float)
+        
+        return output
+        
+    #returns a list of tuples from two lists
+    def tuplesFromLists(self, x, y):
+        
+        #If we received a list, make a list of tuples. Otherwise just return one tuple
+        if type(x) is list:
+            return zip(x, y)
+        else:
+            return (x,y)
+    
     #Oscillator. t:time. i:joint number.
     @staticmethod
     def oscillator(t, i, alpha, beta, gamma, omega):

@@ -46,7 +46,9 @@ inertiaTensor::usage= "inertiaTensor[params,type,connectivity]: Calculate inerti
 rbi::usage = "rbi[m,c, I]: RigidBodyInertia. m \[Epsilon] \[DoubleStruckCapitalR] is the mass, c \[Epsilon] \[DoubleStruckCapitalR]^3(\[Epsilon]\[DoubleStruckCapitalR]^2) is the position of the CoM, I\[Epsilon]\[DoubleStruckCapitalR]^(3\[Times]3)(\[Epsilon]\[DoubleStruckCapitalR]) is the rotational inertia around CoM"
 contactConstraints::usage="contactConstraints[contactType]: Create spanning matrix T for forces and for free motions S. Assumes contact is in the y-direction of the local frame."
 constrainedSubspace::usage="constrainedSubspace[constraintsInformation_,Jacobians_,\[Beta]_]: Output={A, \[Kappa]=\!\(\*OverscriptBox[\(A\), \(\[SmallCircle]\)]\)\!\(\*OverscriptBox[\(q\), \(\[SmallCircle]\)]\), \[Kappa]stab=\[Beta]A\!\(\*OverscriptBox[\(q\), \(\[SmallCircle]\)]\)}"
-ID::usage="ID[model,q,qd,qdd,fex]: Calculates the inverse dynamics of a kinematic tree via the recursive Newton-Euler algorithm. q,qd and qdd are vectors of joint position,velocity and acceleration variables. fex is an optional argument, each row represents a wrench applied to each body (expressed w.r.t. the inerial frame). WARNING: Requires the global vectors qVector and dq to be previously defined"
+ID::usage="ID[model,q,qd,qdd,fex]: Calculates the inverse dynamics of a kinematic tree via the recursive Newton-Euler algorithm. q,qd and qdd are vectors of joint position,velocity and acceleration variables. fex is an optional argument, each row represents a wrench applied to each body (expressed w.r.t. the inerial frame). WARNING: Requires the global vectors qVector and dq to be previously defined."
+HandC::usage="HandC[model,q,qd,fext,gravityTerms]: Coefficients of the eqns. of motion. gravityTerms is a boolean variable to decide if gravitational terms should be included in the output. Set as False if only Coriolis/centripetal effects are desired. WARNING: This function depends on the global variables qVector and dq."
+FDcrb::usage="FDcrb[LOCALmodel, LOCALq, LOCALqd, tau, LOCALfext]: Composite-rigid-Body algorithm. Only works with numerical values."
 
 (*Public symbols*)
 (*Symbol[#]&/@{t,m,mass,\[ScriptL],length,w,width,h,height,r,radius,Lx,comx,Ly,comy,Lz,comz,rbInertia,jtype,jointType};*)
@@ -512,6 +514,88 @@ If[parentArray[[i]]!=0,f[[parentArray[[i]]]]=f[[parentArray[[i]]]]+Transpose[Xup
 ,{i,nBodies,1,-1}];
 
 tau];
+
+(*HandC[model,q,qd,fext,gravityTerms]: Coefficients of the eqns. of motion. gravityTerms is a boolean variable to decide if gravitational terms should be included in the output. Set as False if only Coriolis/centripetal effects are desired*)
+(*WARNING: This function depends on the global variables qVector and dq*)
+HandC[model_,q_,qd_,fex_,gravityTerms_:True]:=Module[{dof,nBodies,tempConfiguration,XJ,S,vJ,Xup,parentArray,v,avp,aGrav,fvp,X0,RBInertia,Cor,fext=fex,IC,H,fh,i,j},
+
+dof=Global`nR/.model;
+nBodies=Global`nB/.model;
+
+tempConfiguration=Join[Thread[Global`qVector->q],Thread[Global`dq->qd]];(*This works if either q is symbolic or numeric*)
+
+S=Array[s,dof];
+Xup=Array[xup,nBodies];
+parentArray=Global`parents/.model;
+v=Array[vel,nBodies];
+avp=Array[accel,nBodies];
+fvp=Array[force,nBodies];
+X0=Array[X0toi,nBodies];(*Transformations from body 0 to body i*)
+(*aGrav=inertialGrav//.model;(*gravity in the inertial frame*)*)
+aGrav:=Switch[gravityTerms,True,Global`inertialGrav//.model,False,{0,0,0,0,0,0}]; (*gravity in the inertial frame*)
+Cor=Array[cor,nBodies];
+
+(*If given a Null or empty list*)
+If[fext==Null,fext=Array[0&,{nBodies,6}]];(*In case there are no external forces, create an array of zeros*)
+If[Dimensions[fext]=={0},fext=Array[0&,{nBodies,6}]];(*In case there are no external forces, create an array of zeros*)
+
+(*Calculation of Coriolis, centrifugal, and gravitational terms*)
+Do[
+{XJ,S[[i]]}=jcalc[Subscript[Global`jtype, i]/.model,Global`qVector[[i]]]/.tempConfiguration;
+vJ=S[[i]]*qd[[i]];
+Xup[[i]]=XJ.Subscript[Global`XT, i]/.model;
+
+If[parentArray[[i]]==0,
+X0[[i]]=Xup[[i]];
+v[[i]]=vJ;
+avp[[i]]=Xup[[i]].(-aGrav),
+X0[[i]]=Xup[[i]].X0[[i-1]];
+v[[i]]=Xup[[i]].v[[parentArray[[i]]]]+vJ;
+avp[[i]]=Xup[[i]].avp[[parentArray[[i]]]]+crossM[v[[i]]].vJ];
+
+RBInertia=Subscript[Global`rbInertia, i]//.model;
+fvp[[i]]=RBInertia.avp[[i]]+crossF[v[[i]]].RBInertia.v[[i]]-Transpose[Inverse[X0[[i]]]].fext[[i]];
+,{i,1,nBodies}];
+
+Do[
+Cor[[i]]=S[[i]].fvp[[i]];
+If[parentArray[[i]]!=0,fvp[[parentArray[[i]]]]=fvp[[parentArray[[i]]]]+Transpose[Xup[[i]]].fvp[[i]]]
+,{i,nBodies,1,-1}];
+
+(*Composite inertia calculation. TODO: This may be filled in previous loop*)
+IC=Array[inertiaComposite,nBodies];
+Do[IC[[i]]=Subscript[Global`rbInertia, i]//.model,{i,1,nBodies}];
+
+Do[
+If[parentArray[[i]]!=0,
+IC[[parentArray[[i]]]]=IC[[parentArray[[i]]]]+Transpose[Xup[[i]]].IC[[i]].Xup[[i]]]
+,{i,nBodies,1,-1}];
+Sow[IC];(*Gather the composite inertias with a reap*)
+
+H=Array[0&,{nBodies,nBodies}];
+Do[
+fh=IC[[i]].S[[i]];
+H[[i,i]]=S[[i]].fh;
+j=i;
+
+While[parentArray[[j]]>0,
+fh=Transpose[Xup[[j]]].fh;
+j=parentArray[[j]];
+H[[i,j]]=S[[j]].fh;
+H[[j,i]]=H[[i,j]]
+](*End of while*)
+,{i,1,nBodies}];
+
+{H,Cor}];
+
+(*FDcrb[LOCALmodel, LOCALq, LOCALqd, tau, LOCALfext]: Composite-rigid-Body algorithm. Only works with numerical values*)
+FDcrb[LOCALmodel_,LOCALq_?(VectorQ[#,NumericQ]&),LOCALqd_?(VectorQ[#,NumericQ]&),tau_,LOCALfext_]:=Module[{LOCALH,LOCALCor,qdd,sol},
+
+qdd=Array[Subscript[jaccel, #1]&,Global`nB/.LOCALmodel];
+{LOCALH,LOCALCor}=HandC[LOCALmodel,LOCALq,LOCALqd,LOCALfext,True];
+sol=Solve[Thread[LOCALH.qdd+LOCALCor==tau],qdd];
+
+Flatten[qdd/.sol]];
 
 End[];
 
