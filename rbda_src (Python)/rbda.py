@@ -25,9 +25,9 @@ plu.rx(45, unit='deg')
 ----------------------------------------------------------------------------
 Log:
 
-[2017-05-23]:   Created v0.4
+[2017-05-25]:   Created v0.4
                 -Created and tested HandC. It works correctly with numerical values, but not yet with symbolic ones
-                -Created FDcrb()
+                -Created FDcrb() and FDab()
 [2017-05-23]:   Created v0.3   
                 -finished createModel()
                 -Created and tested forwardKinematics(), contactConstraints(), constrainedSubspace(), ID(), dimChange
@@ -1030,15 +1030,124 @@ class rbdaClass():
     '''    
     def FDcrb(self, q, qd, tau, fext = []):
         
-        dof = self.model['DoF']
-        nBodies = self.model['nB']
-            
         localH, localCor = self.HandC(q, qd, fext, gravityTerms=True)
         
         RHS = tau -localCor
         ddq = numpy.linalg.solve( localH, RHS )
         
         return ddq
+        
+    '''
+    FDab(q, qd, tau, fext, gravityTerms):
+    '''
+    def FDab(self, q, qd, tau, fext = [], gravityTerms=True):
+        
+        #change list into numpy.ndarray, if necessary
+        if type(q) == list:
+            q = numpy.array( q )
+        if type(qd) == list:
+            qd = numpy.array( qd )
+        if type(fext) == list:
+            fext = numpy.array( fext )
+
+        # Only continue if createModel has been called                
+        if self._modelCreated:
+            
+            dof = self.model['DoF']
+            nBodies = self.model['nB']
+         
+            Xup = numpy.zeros( (nBodies, 6, 6) )
+            S = numpy.zeros( (dof, 6) )
+            X0 = numpy.zeros( (nBodies, 6, 6) )
+            parentArray = self.model['parents']            
+            v = numpy.zeros( (nBodies, 6) )
+            c = numpy.zeros( (nBodies, 6) )
+
+            
+            if gravityTerms:
+                aGrav = self.model['inertialGrav']
+            else:
+                aGrav = numpy.zeros( 6 )
+                
+            IA = numpy.zeros( (nBodies, 6, 6) )
+            pA = numpy.zeros( (nBodies, 6) )
+                
+            if fext.size == 0:
+                fext = numpy.zeros( (nBodies, 6) )
+                
+            # Calculation of Coriolis, centrifugal, and gravitational terms
+            for i in range(nBodies):
+                
+                XJ,tempS = self.jcalc((self.model['jointType'])[i], q[i])
+                S[i] = tempS
+                vJ = S[i]*qd[i]
+                XT = (self.model['XT'])[i]
+                
+                Xup[i] = numpy.dot( XJ, XT )
+
+                #If the parent is the base
+                if parentArray[i] == -1:
+                    X0[i] = Xup[i]
+                    v[i] = vJ
+                    #c[i] = numpy.zeros( 6 )
+                else:
+                    X0[i] = numpy.dot( Xup[i], X0[i-1] )
+                    v[i] = numpy.dot( Xup[i], v[parentArray[i]] ) + vJ
+                    c[i] = numpy.dot( self.crossM(v[i]), vJ )
+                
+                RBInertia = (self.model['rbInertia'])[i]
+                IA[i] = RBInertia
+                
+                pA1 = reduce(numpy.dot, [self.crossF(v[i]), IA[i], v[i]])
+                pA2 = numpy.dot( numpy.transpose( numpy.linalg.inv( X0[i] ) ), fext[i] )
+                
+                pA[i] = pA1 - pA2
+            
+            # 2nd pass. Calculate articulated-body inertias
+            U = numpy.zeros( (nBodies, 6) )
+            d = numpy.zeros( nBodies )
+            u = numpy.zeros( nBodies )
+            
+            for i in range(nBodies-1,-1,-1):
+                
+                U[i] = numpy.dot( IA[i], S[i] )
+                d[i] = numpy.dot( S[i], U[i] )
+                u[i] = tau[i] - numpy.dot( S[i], pA[i])
+                
+                #invd = 1.0/(d[i] + numpy.finfo(float).eps)
+                invd = 1.0/d[i]
+                
+                #If the parent is the base
+                if parentArray[i] != -1:
+                    Ia = IA[i] - invd*numpy.outer( U[i], U[i] )
+                    pa = pA[i] + numpy.dot( Ia, c[i] ) + invd*u[i]*U[i]
+                    
+                    IA[parentArray[i]] = IA[parentArray[i]] + reduce( numpy.dot, [numpy.transpose(Xup[i]), Ia, Xup[i]] )
+                    pA[parentArray[i]] = pA[parentArray[i]] + numpy.dot( numpy.transpose(Xup[i]), pa )
+            
+            
+            # 3rd pass. Calculate spatial accelerations
+            a = numpy.zeros( (nBodies, 6) )
+            qdd = numpy.zeros( dof )
+            
+            for i in range(nBodies):
+                
+                invd = 1.0/d[i]
+                
+                #If the parent is the base
+                if parentArray[i] == -1:
+                    a[i] = numpy.dot( Xup[i], -aGrav ) + c[i]
+                else:
+                    a[i] = numpy.dot( Xup[i], a[parentArray[i]] ) + c[i]
+                
+                qdd[i] = invd*(u[i] - numpy.dot( U[i], a[i] ))
+                a[i] = a[i] + S[i]*qdd[i]
+            
+            return qdd
+            
+        else:
+            print("Model not yet created. Use createModel() first.")
+            return
     
     #-------------------------------------------------------------------
             

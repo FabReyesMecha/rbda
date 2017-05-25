@@ -10,10 +10,10 @@
 NotebookFileLineBreakTest
 NotebookFileLineBreakTest
 NotebookDataPosition[       158,          7]
-NotebookDataLength[    178069,       4327]
-NotebookOptionsPosition[    177758,       4312]
-NotebookOutlinePosition[    178138,       4328]
-CellTagsIndexPosition[    178095,       4325]
+NotebookDataLength[    198876,       4830]
+NotebookOptionsPosition[    198565,       4815]
+NotebookOutlinePosition[    198945,       4831]
+CellTagsIndexPosition[    198902,       4828]
 WindowFrame->Normal*)
 
 (* Beginning of Notebook Content *)
@@ -172,10 +172,15 @@ should be included in the output. Set as False if only Coriolis/centripetal \
 effects are desired. WARNING: This function depends on the global variables \
 qVector and dq.\>\""}], "\[IndentingNewLine]", 
  RowBox[{
+  RowBox[{"FDcrb", "::", "usage"}], "=", 
+  "\"\<FDcrb[LOCALmodel, LOCALq, LOCALqd, tau, LOCALfext]: \
+Composite-rigid-Body algorithm. Only works with numerical values.\>\""}], "\
+\[IndentingNewLine]", 
+ RowBox[{
+  RowBox[{"FDab", "::", "usage"}], "=", "\"\<\>\""}], "\[IndentingNewLine]", 
+ RowBox[{
   RowBox[{
-   RowBox[{"FDcrb", "::", "usage"}], "=", 
-   "\"\<FDcrb[LOCALmodel, LOCALq, LOCALqd, tau, LOCALfext]: \
-Composite-rigid-Body algorithm. Only works with numerical values.\>\""}], 
+   RowBox[{"dimChange", "::", "usage"}], "=", "\"\<\>\""}], 
   "\[IndentingNewLine]", "\[IndentingNewLine]", 
   RowBox[{"(*", 
    RowBox[{"Public", " ", "symbols"}], "*)"}], "\[IndentingNewLine]", 
@@ -1138,13 +1143,13 @@ Composite-rigid-Body algorithm. Only works with numerical values.\>\""}],
    "Basic", " ", "functions", " ", "for", " ", "transformations", " ", 
     "between", " ", "Plucker", " ", "reference", " ", 
     RowBox[{"frames", ".", "Check"}], " ", "table", " ", "2.2", " ", "p", 
-    RowBox[{".23", "."}]}], "*)"}], "\[IndentingNewLine]", "\n", 
+    RowBox[{".23", "."}]}], "*)"}], "\n", "\n", 
   RowBox[{"(*", 
    RowBox[{"Basic", " ", "3", "D", " ", 
     RowBox[{"rotations", ".", " ", 
      RowBox[{"Input", " ", "'"}]}], 
     RowBox[{"\[Theta]", "'"}], " ", "is", " ", "an", " ", 
-    RowBox[{"angle", "."}]}], "*)"}]}], "\n", 
+    RowBox[{"angle", "."}]}], "*)"}]}], "\[IndentingNewLine]", 
  RowBox[{
   RowBox[{
    RowBox[{"rx", "[", "\[Theta]_", "]"}], ":=", 
@@ -1209,14 +1214,13 @@ Composite-rigid-Body algorithm. Only works with numerical values.\>\""}],
        RowBox[{"{", 
         RowBox[{"plE", ",", "0"}], "}"}], ",", 
        RowBox[{"{", 
-        RowBox[{"0", ",", "plE"}], "}"}]}], "}"}], "]"}]}], ";"}], 
-  "\[IndentingNewLine]", "\n", 
+        RowBox[{"0", ",", "plE"}], "}"}]}], "}"}], "]"}]}], ";"}], "\n", "\n", 
   RowBox[{"(*", 
    RowBox[{"6", "D", " ", 
     RowBox[{"rotations", ".", " ", 
      RowBox[{"Input", " ", "'"}]}], 
     RowBox[{"\[Theta]", "'"}], " ", "is", " ", "an", " ", 
-    RowBox[{"angle", "."}]}], "*)"}]}], "\n", 
+    RowBox[{"angle", "."}]}], "*)"}]}], "\[IndentingNewLine]", 
  RowBox[{
   RowBox[{
    RowBox[{"rotx", "[", "\[Theta]_", "]"}], ":=", 
@@ -1232,8 +1236,7 @@ Composite-rigid-Body algorithm. Only works with numerical values.\>\""}],
    RowBox[{
     RowBox[{"rotz", "[", "\[Theta]_", "]"}], ":=", 
     RowBox[{"rot", "[", 
-     RowBox[{"rz", "[", "\[Theta]", "]"}], "]"}]}], ";"}], 
-  "\[IndentingNewLine]", "\n", 
+     RowBox[{"rz", "[", "\[Theta]", "]"}], "]"}]}], ";"}], "\n", "\n", 
   RowBox[{"(*", 
    RowBox[{
     RowBox[{"Cross", " ", "product", " ", "operator", " ", 
@@ -1251,7 +1254,7 @@ Composite-rigid-Body algorithm. Only works with numerical values.\>\""}],
     RowBox[{"symmetric", " ", 
      RowBox[{"(", 
       RowBox[{"3", "x3"}], ")"}], " ", 
-     RowBox[{"matrix", "."}]}]}], "*)"}]}], "\n", 
+     RowBox[{"matrix", "."}]}]}], "*)"}]}], "\[IndentingNewLine]", 
  RowBox[{
   RowBox[{
    RowBox[{
@@ -1374,15 +1377,15 @@ Composite-rigid-Body algorithm. Only works with numerical values.\>\""}],
        RowBox[{"rot", "[", "plE", "]"}], ".", 
        RowBox[{"xlt", "[", "r", "]"}]}], ",", 
       RowBox[{"plE", ".", 
-       RowBox[{"xlt", "[", "r", "]"}]}]}], "]"}]}], ";"}], "\n", "\n", 
+       RowBox[{"xlt", "[", "r", "]"}]}]}], "]"}]}], ";"}], "\n", 
+  "\[IndentingNewLine]", 
   RowBox[{"(*", 
    RowBox[{
     RowBox[{"pluXf", "[", "pluX", "]"}], ":", " ", 
     RowBox[{"Plucker", " ", "transformation", " ", "for", " ", "FORCE", " ", 
      RowBox[{"vectors", ".", " ", "Input"}], " ", "is", " ", "a", " ", "6", 
      "x6", " ", "Plucker", " ", 
-     RowBox[{"(", "motion", ")"}], " ", "transformation"}]}], 
-   "*)"}]}], "\[IndentingNewLine]", 
+     RowBox[{"(", "motion", ")"}], " ", "transformation"}]}], "*)"}]}], "\n", 
  RowBox[{
   RowBox[{
    RowBox[{
@@ -1433,11 +1436,11 @@ Composite-rigid-Body algorithm. Only works with numerical values.\>\""}],
      RowBox[{"Transpose", "[", 
       RowBox[{"Inverse", "[", 
        RowBox[{"xlt", "[", "r", "]"}], "]"}], "]"}]}]}], ";"}], 
-  "\[IndentingNewLine]", "\n", 
+  "\[IndentingNewLine]", "\[IndentingNewLine]", 
   RowBox[{"(*", 
    RowBox[{"Coordinate", " ", 
     RowBox[{"transformation", ".", " ", "Similarity"}], " ", "or", " ", 
-    "congruence"}], "*)"}], "\[IndentingNewLine]", 
+    "congruence"}], "*)"}], "\n", 
   RowBox[{"(*", 
    RowBox[{"TODO", ":", 
     RowBox[{
@@ -1503,7 +1506,7 @@ Composite-rigid-Body algorithm. Only works with numerical values.\>\""}],
             RowBox[{"0", "&"}], ",", 
             RowBox[{"{", 
              RowBox[{"6", ",", "6"}], "}"}]}], "]"}]}]}], "]"}]}], 
-      "\[IndentingNewLine]", "]"}]}], ";"}], "*)"}], "\[IndentingNewLine]", 
+      "\[IndentingNewLine]", "]"}]}], ";"}], "*)"}], "\n", 
   "\[IndentingNewLine]", 
   RowBox[{"(*", 
    RowBox[{
@@ -1533,7 +1536,7 @@ Composite-rigid-Body algorithm. Only works with numerical values.\>\""}],
      RowBox[{"motion", "'"}], " ", 
      RowBox[{"or", " ", "'"}], 
      RowBox[{
-      RowBox[{"force", "'"}], "."}]}]}], "*)"}]}], "\n", 
+      RowBox[{"force", "'"}], "."}]}]}], "*)"}]}], "\[IndentingNewLine]", 
  RowBox[{
   RowBox[{
    RowBox[{
@@ -1593,7 +1596,7 @@ Composite-rigid-Body algorithm. Only works with numerical values.\>\""}],
            RowBox[{"0", "&"}], ",", 
            RowBox[{"{", 
             RowBox[{"6", ",", "6"}], "}"}]}], "]"}]}]}], "]"}]}], 
-     "\[IndentingNewLine]", "]"}]}], ";"}], "\[IndentingNewLine]", "\n", 
+     "\[IndentingNewLine]", "]"}]}], ";"}], "\n", "\[IndentingNewLine]", 
   RowBox[{"(*", 
    RowBox[{
     RowBox[{
@@ -1956,7 +1959,7 @@ Composite-rigid-Body algorithm. Only works with numerical values.\>\""}],
              RowBox[{"6", ",", "6"}], "}"}]}], "]"}]}]}]}], 
        "\[IndentingNewLine]", "]"}], ";", "\[IndentingNewLine]", 
       "\[IndentingNewLine]", "spanS"}]}], "]"}]}], "\[IndentingNewLine]", 
-  "\[IndentingNewLine]", 
+  "\n", 
   RowBox[{"(*", 
    RowBox[{
     RowBox[{
@@ -1980,7 +1983,7 @@ Composite-rigid-Body algorithm. Only works with numerical values.\>\""}],
      RowBox[{"B", ".", " ", "Output"}], " ", "is", " ", "a", " ", "list", " ",
       "of", " ", "points", " ", 
      RowBox[{"w", ".", "r", ".", "t", ".", " ", "frame"}], " ", "B"}]}], 
-   "*)"}]}], "\n", 
+   "*)"}]}], "\[IndentingNewLine]", 
  RowBox[{
   RowBox[{
    RowBox[{
@@ -2047,8 +2050,7 @@ Composite-rigid-Body algorithm. Only works with numerical values.\>\""}],
              RowBox[{
               RowBox[{"E", ".", "#1"}], "&"}], ",", "tempP"}], "]"}]}]}]}], 
         "]"}], ";", "\[IndentingNewLine]", "\[IndentingNewLine]", 
-       "newPoints"}]}], "]"}]}], ";"}], "\[IndentingNewLine]", 
-  "\[IndentingNewLine]", 
+       "newPoints"}]}], "]"}]}], ";"}], "\[IndentingNewLine]", "\n", 
   RowBox[{"(*", 
    RowBox[{
     RowBox[{
@@ -2103,7 +2105,8 @@ Composite-rigid-Body algorithm. Only works with numerical values.\>\""}],
      RowBox[{"WARNING", ":", " ", 
       RowBox[{
       "Requires", " ", "the", " ", "global", " ", "qVector", " ", "to", " ", 
-       "be", " ", "previously", " ", "defined"}]}]}]}], "*)"}]}], "\n", 
+       "be", " ", "previously", " ", "defined"}]}]}]}], 
+   "*)"}]}], "\[IndentingNewLine]", 
  RowBox[{
   RowBox[{
    RowBox[{
@@ -2398,7 +2401,7 @@ Composite-rigid-Body algorithm. Only works with numerical values.\>\""}],
        RowBox[{"(*", 
         RowBox[{"End", " ", "of", " ", "Switch"}], "*)"}], 
        "\[IndentingNewLine]", "\[IndentingNewLine]", "localXT"}]}], "]"}]}], 
-   ";"}], "\n", "\[IndentingNewLine]", 
+   ";"}], "\[IndentingNewLine]", "\[IndentingNewLine]", 
   RowBox[{"(*", 
    RowBox[{"--", 
     RowBox[{"--", 
@@ -2481,7 +2484,7 @@ Composite-rigid-Body algorithm. Only works with numerical values.\>\""}],
      RowBox[{
       RowBox[{"(", 
        RowBox[{"either", " ", "3", "D", " ", "or", " ", "6", "D"}], ")"}], 
-      "."}]}]}], "*)"}]}], "\[IndentingNewLine]", 
+      "."}]}]}], "*)"}]}], "\n", 
  RowBox[{
   RowBox[{
    RowBox[{
@@ -2813,8 +2816,8 @@ Composite-rigid-Body algorithm. Only works with numerical values.\>\""}],
                 RowBox[{"{", 
                  RowBox[{"3", ",", "3"}], "}"}]}], "]"}]}]}], "]"}]}]}]}], 
         "]"}], ";", "\[IndentingNewLine]", "\[IndentingNewLine]", 
-       RowBox[{"mass", "*", "inertiaT"}]}]}], "]"}]}], ";"}], "\n", 
-  "\[IndentingNewLine]", 
+       RowBox[{"mass", "*", "inertiaT"}]}]}], "]"}]}], ";"}], 
+  "\[IndentingNewLine]", "\n", 
   RowBox[{"(*", 
    RowBox[{
     RowBox[{
@@ -3011,8 +3014,8 @@ Composite-rigid-Body algorithm. Only works with numerical values.\>\""}],
             RowBox[{"{", "0", "}"}], "}"}]}]}]}], "]"}], ";", 
        "\[IndentingNewLine]", "\[IndentingNewLine]", 
        RowBox[{"{", 
-        RowBox[{"T", ",", "S"}], "}"}]}]}], "]"}]}], ";"}], "\n", 
-  "\[IndentingNewLine]", 
+        RowBox[{"T", ",", "S"}], "}"}]}]}], "]"}]}], ";"}], 
+  "\[IndentingNewLine]", "\[IndentingNewLine]", 
   RowBox[{"(*", 
    RowBox[{"(*", 
     RowBox[{
@@ -3179,7 +3182,7 @@ Composite-rigid-Body algorithm. Only works with numerical values.\>\""}],
        RowBox[{"output", "=", 
         RowBox[{"{", 
          RowBox[{"constraintMatrixA", ",", "\[Kappa]", ",", "\[Kappa]stab"}], 
-         "}"}]}]}]}], "\n", "]"}]}], "*)"}], "\n", "\n", 
+         "}"}]}]}]}], "\n", "]"}]}], "*)"}], "\[IndentingNewLine]", "\n", 
   RowBox[{"(*", 
    RowBox[{
    "Modified", " ", "version", " ", "that", " ", "can", " ", "be", " ", 
@@ -3189,11 +3192,11 @@ Composite-rigid-Body algorithm. Only works with numerical values.\>\""}],
   RowBox[{"(*", 
    RowBox[{"The", " ", "contactingSide", " ", "information", " ", "is", " ", 
     RowBox[{"w", ".", "r", ".", "t", ".", " ", "the"}], " ", 
-    RowBox[{"robot", "'"}], "s", " ", "link"}], "*)"}], "\[IndentingNewLine]", 
+    RowBox[{"robot", "'"}], "s", " ", "link"}], "*)"}], "\n", 
   RowBox[{"(*", 
    RowBox[{
    "We", " ", "also", " ", "create", " ", "stabilization", " ", "terms"}], 
-   "*)"}]}], "\[IndentingNewLine]", 
+   "*)"}]}], "\n", 
  RowBox[{
   RowBox[{
    RowBox[{"constrainedSubspace", "[", 
@@ -3696,8 +3699,8 @@ Composite-rigid-Body algorithm. Only works with numerical values.\>\""}],
          RowBox[{"{", 
           RowBox[{"i", ",", "nBodies", ",", "1", ",", 
            RowBox[{"-", "1"}]}], "}"}]}], "]"}], ";", "\[IndentingNewLine]", 
-       "\[IndentingNewLine]", "tau"}]}], "]"}]}], ";"}], 
-  "\[IndentingNewLine]", "\n", 
+       "\[IndentingNewLine]", "tau"}]}], "]"}]}], ";"}], "\n", 
+  "\[IndentingNewLine]", 
   RowBox[{"(*", 
    RowBox[{
     RowBox[{"HandC", "[", 
@@ -4136,7 +4139,7 @@ Composite-rigid-Body algorithm. Only works with numerical values.\>\""}],
        "\n", 
        RowBox[{"{", 
         RowBox[{"H", ",", "Cor"}], "}"}]}]}], "]"}]}], ";"}], 
-  "\[IndentingNewLine]", "\[IndentingNewLine]", 
+  "\[IndentingNewLine]", "\n", 
   RowBox[{"(*", 
    RowBox[{
     RowBox[{"FDcrb", "[", 
@@ -4146,7 +4149,7 @@ Composite-rigid-Body algorithm. Only works with numerical values.\>\""}],
     RowBox[{"Composite", "-", "rigid", "-", 
      RowBox[{"Body", " ", 
       RowBox[{"algorithm", ".", " ", "Only"}], " ", "works", " ", "with", " ",
-       "numerical", " ", "values"}]}]}], "*)"}]}], "\n", 
+       "numerical", " ", "values"}]}]}], "*)"}]}], "\[IndentingNewLine]", 
  RowBox[{
   RowBox[{
    RowBox[{
@@ -4195,11 +4198,496 @@ Composite-rigid-Body algorithm. Only works with numerical values.\>\""}],
         "\[IndentingNewLine]", 
        RowBox[{"Flatten", "[", 
         RowBox[{"qdd", "/.", "sol"}], "]"}]}]}], "]"}]}], ";"}], 
-  "\[IndentingNewLine]"}], "\[IndentingNewLine]", 
+  "\[IndentingNewLine]", "\[IndentingNewLine]", 
+  RowBox[{"(*", 
+   RowBox[{"REVIEW", ":", " ", 
+    RowBox[{"Articulated", "-", 
+     RowBox[{"body", " ", "algorithm"}]}]}], "*)"}]}], "\n", 
  RowBox[{
   RowBox[{
-   RowBox[{"End", "[", "]"}], ";"}], 
+   RowBox[{
+    RowBox[{"FDab", "[", 
+     RowBox[{"model_", ",", "q_", ",", "qd_", ",", "tau_", ",", "fex_", ",", 
+      RowBox[{"gravityTerms_:", "True"}]}], "]"}], ":=", 
+    RowBox[{"Module", "[", 
+     RowBox[{
+      RowBox[{"{", 
+       RowBox[{"dof", ",", "nBodies", ",", 
+        RowBox[{"fext", "=", "fex"}], ",", "tempConfiguration", ",", "XJ", 
+        ",", "S", ",", "vJ", ",", "Xup", ",", "parentArray", ",", "v", ",", 
+        "c", ",", "aGrav", ",", "X0", ",", "IA", ",", "pA", ",", "U", ",", 
+        "d", ",", "u", ",", "Ia", ",", "pa", ",", "a", ",", "qdd"}], "}"}], 
+      ",", "\[IndentingNewLine]", "\[IndentingNewLine]", 
+      RowBox[{
+       RowBox[{"dof", "=", 
+        RowBox[{"Global`nR", "/.", "model"}]}], ";", "\[IndentingNewLine]", 
+       RowBox[{"nBodies", "=", 
+        RowBox[{"Global`nB", "/.", "model"}]}], ";", "\[IndentingNewLine]", 
+       "\[IndentingNewLine]", 
+       RowBox[{"tempConfiguration", "=", 
+        RowBox[{"Join", "[", 
+         RowBox[{
+          RowBox[{"Thread", "[", 
+           RowBox[{"Global`qVector", "\[Rule]", "q"}], "]"}], ",", 
+          RowBox[{"Thread", "[", 
+           RowBox[{"Global`dq", "\[Rule]", "qd"}], "]"}]}], "]"}]}], ";", 
+       RowBox[{"(*", 
+        RowBox[{
+        "This", " ", "works", " ", "if", " ", "either", " ", "q", " ", "is", 
+         " ", "symbolic", " ", "or", " ", "numeric"}], "*)"}], 
+       "\[IndentingNewLine]", "\[IndentingNewLine]", 
+       RowBox[{"S", "=", 
+        RowBox[{"Array", "[", 
+         RowBox[{"s", ",", "dof"}], "]"}]}], ";", "\[IndentingNewLine]", 
+       RowBox[{"Xup", "=", 
+        RowBox[{"Array", "[", 
+         RowBox[{"xup", ",", "nBodies"}], "]"}]}], ";", "\[IndentingNewLine]", 
+       RowBox[{"parentArray", "=", 
+        RowBox[{"Global`parents", "/.", "model"}]}], ";", 
+       "\[IndentingNewLine]", 
+       RowBox[{"v", "=", 
+        RowBox[{"Array", "[", 
+         RowBox[{"vel", ",", "nBodies"}], "]"}]}], ";", "\[IndentingNewLine]", 
+       RowBox[{"c", "=", 
+        RowBox[{"Array", "[", 
+         RowBox[{"cprod", ",", "nBodies"}], "]"}]}], ";", 
+       "\[IndentingNewLine]", 
+       RowBox[{"X0", "=", 
+        RowBox[{"Array", "[", 
+         RowBox[{"X0toi", ",", "nBodies"}], "]"}]}], ";", 
+       RowBox[{"(*", 
+        RowBox[{
+        "Transformations", " ", "from", " ", "body", " ", "0", " ", "to", " ",
+          "body", " ", "i"}], "*)"}], "\[IndentingNewLine]", 
+       RowBox[{"(*", 
+        RowBox[{
+         RowBox[{"aGrav", "=", 
+          RowBox[{"inertialGrav", "//.", "model"}]}], ";"}], 
+        RowBox[{"(*", 
+         RowBox[{
+         "gravity", " ", "in", " ", "the", " ", "inertial", " ", "frame"}], 
+         "*)"}], "*)"}], "\[IndentingNewLine]", 
+       RowBox[{"aGrav", ":=", 
+        RowBox[{"Switch", "[", 
+         RowBox[{"gravityTerms", ",", "True", ",", 
+          RowBox[{"Global`inertialGrav", "//.", "model"}], ",", "False", ",", 
+          RowBox[{"{", 
+           RowBox[{"0", ",", "0", ",", "0", ",", "0", ",", "0", ",", "0"}], 
+           "}"}]}], "]"}]}], ";", " ", 
+       RowBox[{"(*", 
+        RowBox[{
+        "gravity", " ", "in", " ", "the", " ", "inertial", " ", "frame"}], 
+        "*)"}], "\[IndentingNewLine]", 
+       RowBox[{"IA", "=", 
+        RowBox[{"Array", "[", 
+         RowBox[{"articulatedI", ",", "nBodies"}], "]"}]}], ";", 
+       "\[IndentingNewLine]", 
+       RowBox[{"pA", "=", 
+        RowBox[{"Array", "[", 
+         RowBox[{"articulatedBias", ",", "nBodies"}], "]"}]}], ";", 
+       "\[IndentingNewLine]", "\[IndentingNewLine]", 
+       RowBox[{"(*", 
+        RowBox[{
+        "If", " ", "given", " ", "a", " ", "Null", " ", "or", " ", "empty", 
+         " ", "list"}], "*)"}], "\[IndentingNewLine]", 
+       RowBox[{"If", "[", 
+        RowBox[{
+         RowBox[{"fext", "\[Equal]", "Null"}], ",", 
+         RowBox[{"fext", "=", 
+          RowBox[{"Array", "[", 
+           RowBox[{
+            RowBox[{"0", "&"}], ",", 
+            RowBox[{"{", 
+             RowBox[{"nBodies", ",", "6"}], "}"}]}], "]"}]}]}], "]"}], ";", 
+       RowBox[{"(*", 
+        RowBox[{
+         RowBox[{
+         "In", " ", "case", " ", "there", " ", "are", " ", "no", " ", 
+          "external", " ", "forces"}], ",", " ", 
+         RowBox[{
+         "create", " ", "an", " ", "array", " ", "of", " ", "zeros"}]}], 
+        "*)"}], "\[IndentingNewLine]", 
+       RowBox[{"If", "[", 
+        RowBox[{
+         RowBox[{
+          RowBox[{"Dimensions", "[", "fext", "]"}], "\[Equal]", 
+          RowBox[{"{", "0", "}"}]}], ",", 
+         RowBox[{"fext", "=", 
+          RowBox[{"Array", "[", 
+           RowBox[{
+            RowBox[{"0", "&"}], ",", 
+            RowBox[{"{", 
+             RowBox[{"nBodies", ",", "6"}], "}"}]}], "]"}]}]}], "]"}], ";", 
+       RowBox[{"(*", 
+        RowBox[{
+         RowBox[{
+         "In", " ", "case", " ", "there", " ", "are", " ", "no", " ", 
+          "external", " ", "forces"}], ",", " ", 
+         RowBox[{
+         "create", " ", "an", " ", "array", " ", "of", " ", "zeros"}]}], 
+        "*)"}], "\[IndentingNewLine]", "\[IndentingNewLine]", 
+       RowBox[{"Do", "[", "\[IndentingNewLine]", 
+        RowBox[{
+         RowBox[{
+          RowBox[{
+           RowBox[{"{", 
+            RowBox[{"XJ", ",", 
+             RowBox[{"S", "[", 
+              RowBox[{"[", "i", "]"}], "]"}]}], "}"}], "=", 
+           RowBox[{
+            RowBox[{"jcalc", "[", 
+             RowBox[{
+              RowBox[{
+               RowBox[{"Subscript", "[", 
+                RowBox[{"Global`jtype", ",", " ", "i"}], "]"}], "/.", 
+               "model"}], ",", 
+              RowBox[{"Global`qVector", "[", 
+               RowBox[{"[", "i", "]"}], "]"}]}], "]"}], "/.", 
+            "tempConfiguration"}]}], ";", "\[IndentingNewLine]", 
+          RowBox[{"vJ", "=", 
+           RowBox[{
+            RowBox[{"S", "[", 
+             RowBox[{"[", "i", "]"}], "]"}], "*", 
+            RowBox[{"qd", "[", 
+             RowBox[{"[", "i", "]"}], "]"}]}]}], ";", "\[IndentingNewLine]", 
+          RowBox[{
+           RowBox[{"Xup", "[", 
+            RowBox[{"[", "i", "]"}], "]"}], "=", 
+           RowBox[{
+            RowBox[{"XJ", ".", 
+             RowBox[{"Subscript", "[", 
+              RowBox[{"Global`XT", ",", " ", "i"}], "]"}]}], "/.", 
+            "model"}]}], ";", "\[IndentingNewLine]", "\[IndentingNewLine]", 
+          RowBox[{"If", "[", 
+           RowBox[{
+            RowBox[{
+             RowBox[{"parentArray", "[", 
+              RowBox[{"[", "i", "]"}], "]"}], "==", "0"}], ",", 
+            "\[IndentingNewLine]", 
+            RowBox[{
+             RowBox[{
+              RowBox[{"X0", "[", 
+               RowBox[{"[", "i", "]"}], "]"}], "=", 
+              RowBox[{"Xup", "[", 
+               RowBox[{"[", "i", "]"}], "]"}]}], ";", "\[IndentingNewLine]", 
+             RowBox[{
+              RowBox[{"v", "[", 
+               RowBox[{"[", "i", "]"}], "]"}], "=", "vJ"}], ";", 
+             "\[IndentingNewLine]", 
+             RowBox[{
+              RowBox[{"c", "[", 
+               RowBox[{"[", "i", "]"}], "]"}], "=", 
+              RowBox[{"{", 
+               RowBox[{
+               "0", ",", "0", ",", "0", ",", "0", ",", "0", ",", "0"}], 
+               "}"}]}]}], ",", "\[IndentingNewLine]", 
+            RowBox[{
+             RowBox[{
+              RowBox[{"X0", "[", 
+               RowBox[{"[", "i", "]"}], "]"}], "=", 
+              RowBox[{
+               RowBox[{"Xup", "[", 
+                RowBox[{"[", "i", "]"}], "]"}], ".", 
+               RowBox[{"X0", "[", 
+                RowBox[{"[", 
+                 RowBox[{"i", "-", "1"}], "]"}], "]"}]}]}], ";", 
+             "\[IndentingNewLine]", 
+             RowBox[{
+              RowBox[{"v", "[", 
+               RowBox[{"[", "i", "]"}], "]"}], "=", 
+              RowBox[{
+               RowBox[{
+                RowBox[{"Xup", "[", 
+                 RowBox[{"[", "i", "]"}], "]"}], ".", 
+                RowBox[{"v", "[", 
+                 RowBox[{"[", 
+                  RowBox[{"parentArray", "[", 
+                   RowBox[{"[", "i", "]"}], "]"}], "]"}], "]"}]}], "+", 
+               "vJ"}]}], ";", "\[IndentingNewLine]", 
+             RowBox[{
+              RowBox[{"c", "[", 
+               RowBox[{"[", "i", "]"}], "]"}], "=", 
+              RowBox[{
+               RowBox[{"crossM", "[", 
+                RowBox[{"v", "[", 
+                 RowBox[{"[", "i", "]"}], "]"}], "]"}], ".", "vJ"}]}]}]}], 
+           "]"}], ";", "\[IndentingNewLine]", "\[IndentingNewLine]", 
+          RowBox[{
+           RowBox[{"IA", "[", 
+            RowBox[{"[", "i", "]"}], "]"}], "=", 
+           RowBox[{
+            RowBox[{"Subscript", "[", 
+             RowBox[{"Global`rbInertia", ",", " ", "i"}], "]"}], "//.", 
+            "model"}]}], ";", "\[IndentingNewLine]", 
+          RowBox[{
+           RowBox[{"pA", "[", 
+            RowBox[{"[", "i", "]"}], "]"}], "=", 
+           RowBox[{
+            RowBox[{
+             RowBox[{"crossF", "[", 
+              RowBox[{"v", "[", 
+               RowBox[{"[", "i", "]"}], "]"}], "]"}], ".", 
+             RowBox[{"IA", "[", 
+              RowBox[{"[", "i", "]"}], "]"}], ".", 
+             RowBox[{"v", "[", 
+              RowBox[{"[", "i", "]"}], "]"}]}], "-", 
+            RowBox[{
+             RowBox[{"Transpose", "[", 
+              RowBox[{"Inverse", "[", 
+               RowBox[{"X0", "[", 
+                RowBox[{"[", "i", "]"}], "]"}], "]"}], "]"}], ".", 
+             RowBox[{"fext", "[", 
+              RowBox[{"[", "i", "]"}], "]"}]}]}]}], ";"}], 
+         "\[IndentingNewLine]", ",", 
+         RowBox[{"{", 
+          RowBox[{"i", ",", "1", ",", "nBodies"}], "}"}]}], "]"}], ";", 
+       "\[IndentingNewLine]", "\[IndentingNewLine]", 
+       RowBox[{"(*", 
+        RowBox[{
+         RowBox[{"2", "nd", " ", 
+          RowBox[{"pass", ".", " ", "Calculate"}], " ", "articulated"}], "-", 
+         RowBox[{"body", " ", "inertias"}]}], "*)"}], "\[IndentingNewLine]", 
+       RowBox[{"U", "=", 
+        RowBox[{"Array", "[", 
+         RowBox[{"articulatedU", ",", "nBodies"}], "]"}]}], ";", 
+       "\[IndentingNewLine]", 
+       RowBox[{"d", "=", 
+        RowBox[{"Array", "[", 
+         RowBox[{"articulatedd", ",", "nBodies"}], "]"}]}], ";", 
+       "\[IndentingNewLine]", 
+       RowBox[{"u", "=", 
+        RowBox[{"Array", "[", 
+         RowBox[{"articulatedu", ",", "nBodies"}], "]"}]}], ";", 
+       "\[IndentingNewLine]", "\[IndentingNewLine]", 
+       RowBox[{"Do", "[", "\[IndentingNewLine]", 
+        RowBox[{
+         RowBox[{
+          RowBox[{
+           RowBox[{"U", "[", 
+            RowBox[{"[", "i", "]"}], "]"}], "=", 
+           RowBox[{
+            RowBox[{"IA", "[", 
+             RowBox[{"[", "i", "]"}], "]"}], ".", 
+            RowBox[{"S", "[", 
+             RowBox[{"[", "i", "]"}], "]"}]}]}], ";", "\[IndentingNewLine]", 
+          RowBox[{
+           RowBox[{"d", "[", 
+            RowBox[{"[", "i", "]"}], "]"}], "=", 
+           RowBox[{
+            RowBox[{"S", "[", 
+             RowBox[{"[", "i", "]"}], "]"}], ".", 
+            RowBox[{"U", "[", 
+             RowBox[{"[", "i", "]"}], "]"}]}]}], ";", "\[IndentingNewLine]", 
+          RowBox[{
+           RowBox[{"u", "[", 
+            RowBox[{"[", "i", "]"}], "]"}], "=", 
+           RowBox[{
+            RowBox[{"tau", "[", 
+             RowBox[{"[", "i", "]"}], "]"}], "-", 
+            RowBox[{
+             RowBox[{"S", "[", 
+              RowBox[{"[", "i", "]"}], "]"}], ".", 
+             RowBox[{"pA", "[", 
+              RowBox[{"[", "i", "]"}], "]"}]}]}]}], ";", 
+          "\[IndentingNewLine]", "\[IndentingNewLine]", 
+          RowBox[{"If", "[", 
+           RowBox[{
+            RowBox[{
+             RowBox[{"parentArray", "[", 
+              RowBox[{"[", "i", "]"}], "]"}], "!=", "0"}], ",", 
+            "\[IndentingNewLine]", 
+            RowBox[{
+             RowBox[{"Ia", "=", 
+              RowBox[{
+               RowBox[{"IA", "[", 
+                RowBox[{"[", "i", "]"}], "]"}], "-", 
+               RowBox[{
+                RowBox[{"1", "/", 
+                 RowBox[{"d", "[", 
+                  RowBox[{"[", "i", "]"}], "]"}]}], "*", 
+                RowBox[{"KroneckerProduct", "[", 
+                 RowBox[{
+                  RowBox[{"U", "[", 
+                   RowBox[{"[", "i", "]"}], "]"}], ",", 
+                  RowBox[{"U", "[", 
+                   RowBox[{"[", "i", "]"}], "]"}]}], "]"}]}]}]}], ";", 
+             "\[IndentingNewLine]", 
+             RowBox[{"pa", "=", 
+              RowBox[{
+               RowBox[{"pA", "[", 
+                RowBox[{"[", "i", "]"}], "]"}], "+", 
+               RowBox[{"Ia", ".", 
+                RowBox[{"c", "[", 
+                 RowBox[{"[", "i", "]"}], "]"}]}], "+", 
+               RowBox[{
+                RowBox[{"1", "/", 
+                 RowBox[{"d", "[", 
+                  RowBox[{"[", "i", "]"}], "]"}]}], "*", 
+                RowBox[{"U", "[", 
+                 RowBox[{"[", "i", "]"}], "]"}], "*", 
+                RowBox[{"u", "[", 
+                 RowBox[{"[", "i", "]"}], "]"}]}]}]}], ";", 
+             "\[IndentingNewLine]", 
+             RowBox[{
+              RowBox[{"IA", "[", 
+               RowBox[{"[", 
+                RowBox[{"parentArray", "[", 
+                 RowBox[{"[", "i", "]"}], "]"}], "]"}], "]"}], "=", 
+              RowBox[{
+               RowBox[{"IA", "[", 
+                RowBox[{"[", 
+                 RowBox[{"parentArray", "[", 
+                  RowBox[{"[", "i", "]"}], "]"}], "]"}], "]"}], "+", 
+               RowBox[{
+                RowBox[{"Transpose", "[", 
+                 RowBox[{"Xup", "[", 
+                  RowBox[{"[", "i", "]"}], "]"}], "]"}], ".", "Ia", ".", 
+                RowBox[{"Xup", "[", 
+                 RowBox[{"[", "i", "]"}], "]"}]}]}]}], ";", 
+             "\[IndentingNewLine]", 
+             RowBox[{
+              RowBox[{"pA", "[", 
+               RowBox[{"[", 
+                RowBox[{"parentArray", "[", 
+                 RowBox[{"[", "i", "]"}], "]"}], "]"}], "]"}], "=", 
+              RowBox[{
+               RowBox[{"pA", "[", 
+                RowBox[{"[", 
+                 RowBox[{"parentArray", "[", 
+                  RowBox[{"[", "i", "]"}], "]"}], "]"}], "]"}], "+", 
+               RowBox[{
+                RowBox[{"Transpose", "[", 
+                 RowBox[{"Xup", "[", 
+                  RowBox[{"[", "i", "]"}], "]"}], "]"}], ".", "pa"}]}]}]}]}], 
+           "\[IndentingNewLine]", "]"}]}], "\[IndentingNewLine]", ",", 
+         RowBox[{"{", 
+          RowBox[{"i", ",", "nBodies", ",", "1", ",", 
+           RowBox[{"-", "1"}]}], "}"}]}], "]"}], ";", "\[IndentingNewLine]", 
+       "\[IndentingNewLine]", 
+       RowBox[{"Sow", "[", "IA", "]"}], ";", "\[IndentingNewLine]", 
+       RowBox[{"(*", 
+        RowBox[{"3", "rd", " ", 
+         RowBox[{"pass", ".", " ", "Calculate"}], " ", "spatial", " ", 
+         "accelerations"}], "*)"}], "\[IndentingNewLine]", 
+       RowBox[{"a", "=", 
+        RowBox[{"Array", "[", 
+         RowBox[{"accel", ",", "nBodies"}], "]"}]}], ";", 
+       "\[IndentingNewLine]", 
+       RowBox[{"qdd", "=", 
+        RowBox[{"Array", "[", 
+         RowBox[{
+          RowBox[{
+           RowBox[{"Subscript", "[", 
+            RowBox[{"jaccel", ",", " ", "#1"}], "]"}], "&"}], ",", 
+          "nBodies"}], "]"}]}], ";", "\[IndentingNewLine]", 
+       "\[IndentingNewLine]", 
+       RowBox[{"Do", "[", "\[IndentingNewLine]", 
+        RowBox[{
+         RowBox[{
+          RowBox[{"If", "[", 
+           RowBox[{
+            RowBox[{
+             RowBox[{"parentArray", "[", 
+              RowBox[{"[", "i", "]"}], "]"}], "\[Equal]", "0"}], ",", 
+            "\[IndentingNewLine]", 
+            RowBox[{
+             RowBox[{"a", "[", 
+              RowBox[{"[", "i", "]"}], "]"}], "=", 
+             RowBox[{
+              RowBox[{
+               RowBox[{"Xup", "[", 
+                RowBox[{"[", "i", "]"}], "]"}], ".", 
+               RowBox[{"(", 
+                RowBox[{"-", "aGrav"}], ")"}]}], "+", 
+              RowBox[{"c", "[", 
+               RowBox[{"[", "i", "]"}], "]"}]}]}], ",", "\[IndentingNewLine]", 
+            RowBox[{
+             RowBox[{"a", "[", 
+              RowBox[{"[", "i", "]"}], "]"}], "=", 
+             RowBox[{
+              RowBox[{
+               RowBox[{"Xup", "[", 
+                RowBox[{"[", "i", "]"}], "]"}], ".", 
+               RowBox[{"a", "[", 
+                RowBox[{"[", 
+                 RowBox[{"parentArray", "[", 
+                  RowBox[{"[", "i", "]"}], "]"}], "]"}], "]"}]}], "+", 
+              RowBox[{"c", "[", 
+               RowBox[{"[", "i", "]"}], "]"}]}]}]}], "\[IndentingNewLine]", 
+           "]"}], ";", "\[IndentingNewLine]", "\[IndentingNewLine]", 
+          RowBox[{
+           RowBox[{"qdd", "[", 
+            RowBox[{"[", "i", "]"}], "]"}], "=", 
+           RowBox[{
+            RowBox[{"1", "/", 
+             RowBox[{"d", "[", 
+              RowBox[{"[", "i", "]"}], "]"}]}], "*", 
+            RowBox[{"(", 
+             RowBox[{
+              RowBox[{"u", "[", 
+               RowBox[{"[", "i", "]"}], "]"}], "-", 
+              RowBox[{
+               RowBox[{"U", "[", 
+                RowBox[{"[", "i", "]"}], "]"}], ".", 
+               RowBox[{"a", "[", 
+                RowBox[{"[", "i", "]"}], "]"}]}]}], ")"}]}]}], ";", 
+          "\[IndentingNewLine]", 
+          RowBox[{
+           RowBox[{"a", "[", 
+            RowBox[{"[", "i", "]"}], "]"}], "=", 
+           RowBox[{
+            RowBox[{"a", "[", 
+             RowBox[{"[", "i", "]"}], "]"}], "+", 
+            RowBox[{
+             RowBox[{"S", "[", 
+              RowBox[{"[", "i", "]"}], "]"}], "*", 
+             RowBox[{"qdd", "[", 
+              RowBox[{"[", "i", "]"}], "]"}]}]}]}]}], "\[IndentingNewLine]", 
+         ",", 
+         RowBox[{"{", 
+          RowBox[{"i", ",", "1", ",", "nBodies"}], "}"}]}], "]"}], ";", 
+       "\[IndentingNewLine]", "\[IndentingNewLine]", "qdd"}]}], "]"}]}], 
+   ";"}], "\[IndentingNewLine]"}], "\[IndentingNewLine]", 
+ RowBox[{
+  RowBox[{
+   RowBox[{"dimChange", "[", "quantity_", "]"}], ":=", "\[IndentingNewLine]", 
+   RowBox[{"Switch", "[", 
+    RowBox[{
+     RowBox[{"Dimensions", "[", "quantity", "]"}], ",", "\[IndentingNewLine]", 
+     RowBox[{"{", "6", "}"}], ",", 
+     RowBox[{"quantity", "[", 
+      RowBox[{"[", 
+       RowBox[{"3", ";;", "5"}], "]"}], "]"}], ",", "\[IndentingNewLine]", 
+     RowBox[{"{", 
+      RowBox[{"6", ",", "6"}], "}"}], ",", 
+     RowBox[{"quantity", "[", 
+      RowBox[{"[", 
+       RowBox[{
+        RowBox[{"3", ";;", "5"}], ",", 
+        RowBox[{"3", ";;", "5"}]}], "]"}], "]"}], ",", "\[IndentingNewLine]", 
+     RowBox[{"{", "3", "}"}], ",", 
+     RowBox[{
+      RowBox[{"{", 
+       RowBox[{"0", ",", "0"}], "}"}], "~", "Join", "~", "quantity", "~", 
+      "Join", "~", 
+      RowBox[{"{", "0", "}"}]}], ",", "\[IndentingNewLine]", 
+     RowBox[{"{", 
+      RowBox[{"3", ",", "3"}], "}"}], ",", 
+     RowBox[{"ArrayFlatten", "[", 
+      RowBox[{"{", 
+       RowBox[{
+        RowBox[{"{", 
+         RowBox[{"0", ",", "0", ",", "0", ",", "0"}], "}"}], ",", 
+        RowBox[{"{", 
+         RowBox[{"0", ",", "0", ",", "0", ",", "0"}], "}"}], ",", 
+        RowBox[{"{", 
+         RowBox[{"0", ",", "0", ",", "quantity", ",", "0"}], "}"}], ",", 
+        RowBox[{"{", 
+         RowBox[{"0", ",", "0", ",", "0", ",", "0"}], "}"}]}], "}"}], "]"}]}],
+     "\[IndentingNewLine]", "]"}]}], 
   "\[IndentingNewLine]"}], "\[IndentingNewLine]", 
+ RowBox[{
+  RowBox[{"End", "[", "]"}], ";"}], "\[IndentingNewLine]", 
  RowBox[{"EndPackage", "[", "]"}]}], "Input",
  InitializationCell->True,
  CellChangeTimes->{{3.6941133669973974`*^9, 3.694113376096918*^9}, {
@@ -4308,7 +4796,22 @@ Composite-rigid-Body algorithm. Only works with numerical values.\>\""}],
    3.704681239660391*^9}, {3.7046813484606133`*^9, 3.7046813754001546`*^9}, {
    3.7046821538556795`*^9, 3.7046821705166326`*^9}, {3.704682201663414*^9, 
    3.7046822038875413`*^9}, {3.7046826792467303`*^9, 3.704682679662754*^9}, {
-   3.7046854948707747`*^9, 3.704685644771349*^9}}]
+   3.7046854948707747`*^9, 3.704685644771349*^9}, {3.704686842879876*^9, 
+   3.7046870423642864`*^9}, {3.704687207012704*^9, 3.7046872280609074`*^9}, {
+   3.704687267030136*^9, 3.7046873510369415`*^9}, {3.7046873973685913`*^9, 
+   3.7046874093072743`*^9}, 3.7046876603976355`*^9, {3.7046878187796946`*^9, 
+   3.7046878257400928`*^9}, {3.7046900997961617`*^9, 
+   3.7046902064452615`*^9}, {3.704690248404661*^9, 3.704690299710596*^9}, {
+   3.704690460618799*^9, 3.7046904709563904`*^9}, {3.7046935123503485`*^9, 
+   3.7046935306033926`*^9}, {3.704693969119474*^9, 3.704693981939207*^9}, {
+   3.70469410577229*^9, 3.7046941254804173`*^9}, {3.704694460666589*^9, 
+   3.7046944997318234`*^9}, {3.7046947412466373`*^9, 
+   3.7046947522892685`*^9}, {3.7046950036246443`*^9, 3.704695006539811*^9}, {
+   3.7046953766559806`*^9, 3.704695387051575*^9}, {3.7046956731909413`*^9, 
+   3.704695700304492*^9}, {3.7046959016560087`*^9, 3.7046959248423347`*^9}, {
+   3.704696123955724*^9, 3.7046961492701716`*^9}, {3.70469623473806*^9, 
+   3.7046962547412043`*^9}, {3.7046967369237833`*^9, 3.704696788142713*^9}, {
+   3.704697055741019*^9, 3.704697066789651*^9}}]
 },
 AutoGeneratedPackage->Automatic,
 WindowSize->{1920, 998},
@@ -4327,7 +4830,7 @@ CellTagsIndex->{}
 *)
 (*NotebookFileOutline
 Notebook[{
-Cell[558, 20, 177196, 4290, 11963, "Input",
+Cell[558, 20, 198003, 4793, 13643, "Input",
  InitializationCell->True]
 }
 ]

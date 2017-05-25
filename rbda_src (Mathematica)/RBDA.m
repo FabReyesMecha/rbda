@@ -49,6 +49,8 @@ constrainedSubspace::usage="constrainedSubspace[constraintsInformation_,Jacobian
 ID::usage="ID[model,q,qd,qdd,fex]: Calculates the inverse dynamics of a kinematic tree via the recursive Newton-Euler algorithm. q,qd and qdd are vectors of joint position,velocity and acceleration variables. fex is an optional argument, each row represents a wrench applied to each body (expressed w.r.t. the inerial frame). WARNING: Requires the global vectors qVector and dq to be previously defined."
 HandC::usage="HandC[model,q,qd,fext,gravityTerms]: Coefficients of the eqns. of motion. gravityTerms is a boolean variable to decide if gravitational terms should be included in the output. Set as False if only Coriolis/centripetal effects are desired. WARNING: This function depends on the global variables qVector and dq."
 FDcrb::usage="FDcrb[LOCALmodel, LOCALq, LOCALqd, tau, LOCALfext]: Composite-rigid-Body algorithm. Only works with numerical values."
+FDab::usage=""
+dimChange::usage=""
 
 (*Public symbols*)
 (*Symbol[#]&/@{t,m,mass,\[ScriptL],length,w,width,h,height,r,radius,Lx,comx,Ly,comy,Lz,comz,rbInertia,jtype,jointType};*)
@@ -597,6 +599,88 @@ sol=Solve[Thread[LOCALH.qdd+LOCALCor==tau],qdd];
 
 Flatten[qdd/.sol]];
 
-End[];
+(*REVIEW: Articulated-body algorithm*)
+FDab[model_,q_,qd_,tau_,fex_,gravityTerms_:True]:=Module[{dof,nBodies,fext=fex,tempConfiguration,XJ,S,vJ,Xup,parentArray,v,c,aGrav,X0,IA,pA,U,d,u,Ia,pa,a,qdd},
 
+dof=Global`nR/.model;
+nBodies=Global`nB/.model;
+
+tempConfiguration=Join[Thread[Global`qVector->q],Thread[Global`dq->qd]];(*This works if either q is symbolic or numeric*)
+
+S=Array[s,dof];
+Xup=Array[xup,nBodies];
+parentArray=Global`parents/.model;
+v=Array[vel,nBodies];
+c=Array[cprod,nBodies];
+X0=Array[X0toi,nBodies];(*Transformations from body 0 to body i*)
+(*aGrav=inertialGrav//.model;(*gravity in the inertial frame*)*)
+aGrav:=Switch[gravityTerms,True,Global`inertialGrav//.model,False,{0,0,0,0,0,0}]; (*gravity in the inertial frame*)
+IA=Array[articulatedI,nBodies];
+pA=Array[articulatedBias,nBodies];
+
+(*If given a Null or empty list*)
+If[fext==Null,fext=Array[0&,{nBodies,6}]];(*In case there are no external forces, create an array of zeros*)
+If[Dimensions[fext]=={0},fext=Array[0&,{nBodies,6}]];(*In case there are no external forces, create an array of zeros*)
+
+Do[
+{XJ,S[[i]]}=jcalc[Subscript[Global`jtype, i]/.model,Global`qVector[[i]]]/.tempConfiguration;
+vJ=S[[i]]*qd[[i]];
+Xup[[i]]=XJ.Subscript[Global`XT, i]/.model;
+
+If[parentArray[[i]]==0,
+X0[[i]]=Xup[[i]];
+v[[i]]=vJ;
+c[[i]]={0,0,0,0,0,0},
+X0[[i]]=Xup[[i]].X0[[i-1]];
+v[[i]]=Xup[[i]].v[[parentArray[[i]]]]+vJ;
+c[[i]]=crossM[v[[i]]].vJ];
+
+IA[[i]]=Subscript[Global`rbInertia, i]//.model;
+pA[[i]]=crossF[v[[i]]].IA[[i]].v[[i]]-Transpose[Inverse[X0[[i]]]].fext[[i]];
+,{i,1,nBodies}];
+
+(*2nd pass. Calculate articulated-body inertias*)
+U=Array[articulatedU,nBodies];
+d=Array[articulatedd,nBodies];
+u=Array[articulatedu,nBodies];
+
+Do[
+U[[i]]=IA[[i]].S[[i]];
+d[[i]]=S[[i]].U[[i]];
+u[[i]]=tau[[i]]-S[[i]].pA[[i]];
+
+If[parentArray[[i]]!=0,
+Ia=IA[[i]]-1/d[[i]]*KroneckerProduct[U[[i]],U[[i]]];
+pa=pA[[i]]+Ia.c[[i]]+1/d[[i]]*U[[i]]*u[[i]];
+IA[[parentArray[[i]]]]=IA[[parentArray[[i]]]]+Transpose[Xup[[i]]].Ia.Xup[[i]];
+pA[[parentArray[[i]]]]=pA[[parentArray[[i]]]]+Transpose[Xup[[i]]].pa
+]
+,{i,nBodies,1,-1}];
+
+Sow[IA];
+(*3rd pass. Calculate spatial accelerations*)
+a=Array[accel,nBodies];
+qdd=Array[Subscript[jaccel, #1]&,nBodies];
+
+Do[
+If[parentArray[[i]]==0,
+a[[i]]=Xup[[i]].(-aGrav)+c[[i]],
+a[[i]]=Xup[[i]].a[[parentArray[[i]]]]+c[[i]]
+];
+
+qdd[[i]]=1/d[[i]]*(u[[i]]-U[[i]].a[[i]]);
+a[[i]]=a[[i]]+S[[i]]*qdd[[i]]
+,{i,1,nBodies}];
+
+qdd];
+
+dimChange[quantity_]:=
+Switch[Dimensions[quantity],
+{6},quantity[[3;;5]],
+{6,6},quantity[[3;;5,3;;5]],
+{3},{0,0}~Join~quantity~Join~{0},
+{3,3},ArrayFlatten[{{0,0,0,0},{0,0,0,0},{0,0,quantity,0},{0,0,0,0}}]
+]
+
+End[];
 EndPackage[]
