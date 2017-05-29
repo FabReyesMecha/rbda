@@ -28,6 +28,7 @@ Log:
 [2017-05-25]:   Created v0.4
                 -Created and tested HandC. It works correctly with numerical values, but not yet with symbolic ones
                 -Created FDcrb() and FDab()
+                -Created forwardKinematics_sym() for obtaining jacobians in symbolic form
 [2017-05-23]:   Created v0.3   
                 -finished createModel()
                 -Created and tested forwardKinematics(), contactConstraints(), constrainedSubspace(), ID(), dimChange
@@ -116,6 +117,8 @@ class rbdaClass():
     'contactModel':['pointContactWithoutFriction','pointContactWithoutFriction','pointContactWithoutFriction'],
     'contactingSide':['left','left','left']
     }
+    
+    plu.constrainedSubspace(constraintsInformation, Jacobians)
     '''        
     def createModel(self, floatingBaseBool, noJoints, units, bodiesParams, DHParameters, conInformation):
         
@@ -529,22 +532,22 @@ class rbdaClass():
 
         if typeJoint.lower() == 'rx':
             XJ = self.rotX(q)
-            S = numpy.array([1,0,0,0,0,0])           
+            S = numpy.array([1.0,0.0,0.0,0.0,0.0,0.0])           
         elif typeJoint.lower() == 'ry':
             XJ = self.rotY(q)
-            S = numpy.array([0,1,0,0,0,0])
+            S = numpy.array([0.0,1.0,0.0,0.0,0.0,0.0])
         elif typeJoint.lower() == 'rz':
             XJ = self.rotZ(q)
-            S = numpy.array([0,0,1,0,0,0])  
+            S = numpy.array([0.0,0.0,1.0,0.0,0.0,0.0])  
         elif typeJoint.lower() == 'px':
             XJ = self.xlt([q,0,0])
-            S = numpy.array([0,0,0,1,0,0])  
+            S = numpy.array([0.0,0.0,0.0,1.0,0.0,0.0])  
         elif typeJoint.lower() == 'py':
             XJ = self.xlt([0,q,0])
-            S = numpy.array([0,0,0,0,1,0])  
+            S = numpy.array([0.0,0.0,0.0,0.0,1.0,0.0])  
         elif typeJoint.lower() == 'pz':
             XJ = self.xlt([0,0,q])
-            S = numpy.array([0,0,0,0,0,1])
+            S = numpy.array([0.0,0.0,0.0,0.0,0.0,1.0])
         else:
             print("Joint type not recognized")
             XJ = numpy.identity(6)
@@ -586,7 +589,6 @@ class rbdaClass():
     not only the CoM (w.r.t. local coordinates). Use createModel() first.
     'q' is the vector of generalized coordinates (including floating base)
     '''
-    # TODO: Obtaining the Jacobians as symbolic may help in getting the derivatives later.
     def forwardKinematics(self, q, unit='rad'):
         
         #Change types and unit if necessary
@@ -624,6 +626,58 @@ class rbdaClass():
                     S[j] = numpy.dot( Xup[i], S[j] )
                     
                 jacobian[i] = numpy.transpose(S)
+                
+        else:
+            print("Model not yet created. Use createModel() first.")
+            return
+        
+        return Xup,X0,invX0,jacobian
+        
+    '''
+    forwardKinematics_sym(): (Symbolic version) Automatic process to obtain all transformations from the inertial \
+    frame {0} to Body-i. The geometric Jacobians of Body i represents the overall motion and \
+    not only the CoM (w.r.t. local coordinates). Use createModel() first.
+    'q' is the list of symbols (or dynamicsymbols) representing the generalized coordinates (including floating base)
+    '''
+    def forwardKinematics_sym(self, q, unit='rad'):
+        
+        #Change types and unit if necessary
+        if type(q) == list:
+            q = numpy.array(q)
+        if unit.lower() == 'deg':
+            q = numpy.radians(q)
+        
+        if self._modelCreated:
+            
+            parentArray = self.model['parents']
+            Xup = [sympy.zeros( 6,6 ) for i in range(self.model['nB'])]
+            S = numpy.zeros( (self.model['nB'], 6) ).astype(numpy.object)
+            X0 = [sympy.zeros( 6,6 ) for i in range(self.model['nB'])]
+            invX0 = [sympy.zeros( 6,6 ) for i in range(self.model['nB'])]
+            jacobian = [sympy.zeros( 6,self.model['nB'] ) for i in range(self.model['nB'])]
+            
+            for i in range(self.model['nB']):
+                XJ,tempS = self.jcalc((self.model['jointType'])[i], q[i])
+                S[i] = tempS
+
+                XJ = sympy.Matrix(XJ)
+                XT = sympy.Matrix( (self.model['XT'])[i] )
+                Xup[i] = XJ*XT
+                
+                #If the parent is the base
+                if parentArray[i] == -1:
+                    X0[i] = Xup[i]
+                else:
+                    X0[i] = Xup[i]*X0[i-1]
+                    
+                #Obtain inverse mappings
+                invX0[i] = X0[i].inv()
+                
+                #We change the previous S into local coordinates of Body-i
+                for j in range(i):
+                    S[j] = numpy.transpose( numpy.array( (Xup[i])*(sympy.Matrix(S[j])) ) )
+
+                jacobian[i] = sympy.Matrix( numpy.transpose(S) )
                 
         else:
             print("Model not yet created. Use createModel() first.")
