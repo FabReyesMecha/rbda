@@ -25,6 +25,8 @@ plu.rx(45, unit='deg')
 ----------------------------------------------------------------------------
 Log:
 
+[2017-09-13]:   Updated symbolic version
+[2017-09-06]:   Created v0.5 - Symbolic version
 [2017-05-25]:   Created v0.4
                 -Created and tested HandC. It works correctly with numerical values, but not yet with symbolic ones
                 -Created FDcrb() and FDab()
@@ -39,6 +41,26 @@ Log:
 [2017-05-15]:   Created v0.1
                 -Start version control
                 -Review and merge results from codenvy (ROBOMECH)
+                
+----------------------------------------------------------------------------
+How to create expression dependent on time and differentiate w.r.t. time
+
+from sympy.physics.vector import dynamicsymbols
+q1 = dynamicsymbols('q1')
+q2 = dynamicsymbols('q2')
+func = q1 + 2*q2
+derFunc = sympy.diff(func, sympy.Symbol('t') )
+
+#or
+
+theta = dynamicsymbols('theta')
+rot = plu.rz(theta)
+
+#This does NOT work
+derRot = sympy.diff(rot, sympy.Symbol('t') )
+
+#This works
+derRot = rot.diff( sympy.Symbol('t') )
 
 @author: Reyes Fabian
 """
@@ -46,6 +68,8 @@ Log:
 import numpy
 import math
 import copy #for deepcopy
+import numbers
+
 import sympy
 from sympy.physics.vector import dynamicsymbols
 from sympy import diff, Symbol
@@ -54,7 +78,7 @@ class rbdaClass():
 
     #Constructor
     def __init__(self):
-        self.__version__ = '0.4.0'
+        self.__version__ = '0.5.0'
         self._modelCreated = False
         
     #Created model
@@ -72,7 +96,8 @@ class rbdaClass():
     'Lz':[0,0,0,0,0],
     'shapes':["Prism","Prism","Prism","Prism","Prism"],
     'jointType':['Rz','Rz','Rz','Rz','Rz'],
-    'xt':[[0,0,0],[0,0,0][0.15,0,0],[0.15,0,0],[0.15,0,0]]
+    'xt':[[0,0,0],[0,0,0],[0.15,0,0],[0.15,0,0],[0.15,0,0]],
+    'gravityAxis':'y'
     }
     
     plu.createModel(False, 5, '[kg m s]', bodiesParams, None, None)
@@ -125,23 +150,23 @@ class rbdaClass():
         # Create deep copy of the parameters
         self.model = copy.deepcopy(bodiesParams)
         
+        #Decide if we have a floating base
         self.model['floatingBase'] = floatingBaseBool
         
-        # nR: degrees of freedom (DoF) of the robot including the floating base (nFB). 
-        # We have n-2 links (bodies) and n-nFB actuated joints*)
-        
-        # non-actuated DoF of the floating base
+        # nFB: degrees of freedom of the floating base
         if floatingBaseBool is True:
             self.model['nFB'] = 3
         else:
             self.model['nFB'] = 0
             
+        # nR: degrees of freedom (DoF) of the robot including the floating base (nFB). 
         self.model['DoF'] = self.model['nFB'] + noJoints
         self.model['nR'] = self.model['DoF']
         
+        # We have n-2 links (bodies) and n-nFB actuated joints*)
         # How many bodies are in the system
         if floatingBaseBool is True:
-            bodies = noJoints+3#I am considering the virtual bodies too
+            bodies = noJoints + 3 #I am considering the virtual bodies too
         else:
             bodies = noJoints
         self.model['nB'] = bodies
@@ -153,12 +178,14 @@ class rbdaClass():
 #        self.qVector = sympy.symarray( 'qVector', self.model['DoF'] )
 #        self.dq = sympy.symarray( 'dq', self.model['DoF'] )
 
-        # Option 2: dynamic symbols and return a list
+        # Option 2: dynamic symbols and return a list. Easiest to manipulate afterwards
         qVector = ['q_'+str(i).zfill(2) for i in range(self.model['DoF'])]
         dq = ['dq_'+str(i).zfill(2) for i in range(self.model['DoF'])]
+        ddq = ['ddq_'+str(i).zfill(2) for i in range(self.model['DoF'])]
         
         self.qVector = dynamicsymbols(qVector)
         self.dq = dynamicsymbols(dq)
+        self.ddq = dynamicsymbols(ddq)
         
         # Option 3: return a numpy array
 #        self.qVector = numpy.array( dynamicsymbols(qVector) )
@@ -230,15 +257,14 @@ class rbdaClass():
         self._modelCreated = True
         print('Model created')
     
-    #three-dimensional rotations
+    #three-dimensional rotation around the x axis. Works numerically or symbollicaly
+    #IF using a symbolic variable, a numeric matrix can be obtained as rx(theta).subs(theta, 1.0), for example.
     @staticmethod
     def rx(theta, unit='rad'):
         
         if isinstance(theta, tuple(sympy.core.all_classes)):
             c_theta = sympy.cos(theta)
             s_theta = sympy.sin(theta)
-            
-            return sympy.Matrix([[1.0,0.0,0.0],[0.0,c_theta,s_theta],[0.0,-s_theta,c_theta]])
 
         else:    
             if unit.lower() == 'deg':
@@ -247,16 +273,15 @@ class rbdaClass():
             c_theta = math.cos(theta)
             s_theta = math.sin(theta)
         
-            return numpy.array([[1.0,0.0,0.0],[0.0,c_theta,s_theta],[0.0,-s_theta,c_theta]])
+        return sympy.Matrix( [[1.0,0.0,0.0],[0.0,c_theta,s_theta],[0.0,-s_theta,c_theta]] )
 
+    #three-dimensional rotation around the y axis. Works numerically or symbollicaly
     @staticmethod
     def ry(theta, unit='rad'):
 
         if isinstance(theta, tuple(sympy.core.all_classes)):
             c_theta = sympy.cos(theta)
             s_theta = sympy.sin(theta)
-            
-            return sympy.Matrix([[c_theta,0.0,-s_theta],[0.0,1.0,0.0],[s_theta,0.0,c_theta]])
 
         else:    
             if unit.lower() == 'deg':
@@ -265,8 +290,9 @@ class rbdaClass():
             c_theta = math.cos(theta)
             s_theta = math.sin(theta)
         
-            return numpy.array([[c_theta,0.0,-s_theta],[0.0,1.0,0.0],[s_theta,0.0,c_theta]])
+        return sympy.Matrix( [[c_theta,0.0,-s_theta],[0.0,1.0,0.0],[s_theta,0.0,c_theta]] )
 
+    #three-dimensional rotation around the z axis. Works numerically or symbollicaly
     @staticmethod
     def rz(theta, unit='rad'):
 
@@ -274,8 +300,6 @@ class rbdaClass():
             c_theta = sympy.cos(theta)
             s_theta = sympy.sin(theta)
             
-            return sympy.Matrix([[c_theta,s_theta,0.0],[-s_theta,c_theta,0.0],[0.0,0.0,1.0]])
-            
         else:    
             if unit.lower() == 'deg':
                 theta=math.radians(theta)
@@ -283,7 +307,7 @@ class rbdaClass():
             c_theta = math.cos(theta)
             s_theta = math.sin(theta)
             
-            return numpy.array([[c_theta,s_theta,0.0],[-s_theta,c_theta,0.0],[0.0,0.0,1.0]])
+        return sympy.Matrix( [[c_theta,s_theta,0.0],[-s_theta,c_theta,0.0],[0.0,0.0,1.0]] )
 
     #general container for six-dimensional rotations. Input 'plE' is a three dimensional rotation matrix
     @staticmethod
@@ -293,14 +317,11 @@ class rbdaClass():
         if type(plE) == list:
             plE = numpy.array( plE )
 
-        #alternative method
-        # output = numpy.zeros((6,6))
-        # output[0:3,0:3] = output[3:6,3:6] = plE
-        # return output
-
         #obtain output
-        zero = numpy.zeros( (3,3) )
-        return numpy.bmat([[plE, zero], [zero, plE]])
+        zero = sympy.zeros(3)
+        #return sympy.BlockMatrix( [[plE, zero], [zero, plE]] )
+        return sympy.Matrix( numpy.bmat([[plE, zero], [zero, plE]]) )
+        
 
     #six-dimensional rotations. Input is an angle
     def rotX(self, theta, unit='rad'):
@@ -314,48 +335,50 @@ class rbdaClass():
     def rotZ(self, theta, unit='rad'):
         return self.rot(self.rz(theta, unit))
 
+    #Derivate of a rotation matrix. rot must be a sympy.Matrix object, and variable a sympy.Symbol
+    def derRot(self, rot, variable):
+        return rot.diff( variable )
+        
     '''
     Cross product operator (rx pronounced r-cross).
     Input 'r' is either a 3D (point) vector or a skew-symmetric (3x3) matrix.
+    A symbolic array can be created as r = sympy.symarray( 'r', 3 ) or r = sympy.symarray( 'r', (3,3) )
     '''
     @staticmethod
     def skew(r):
-        #change list into numpy.ndarray, if necessary
+    
+        #change list into sympy.matrix, if necessary
         if type(r) == list:
-            r = numpy.array( r )
+            r = sympy.Matrix(r)
+        elif type(r) == numpy.ndarray:
+            r = sympy.Matrix(r)
 
-        if r.ndim == 1:#Change from vector to matrix
-            return numpy.array([[0.0, -r[2], r[1]],[r[2], 0.0, -r[0]],[-r[1], r[0], 0.0]])
-        elif r.ndim == 2:#Change from matrix to vector
-            return 0.5*numpy.array([r[2,1]-r[1,2], r[0,2]-r[2,0], r[1,0]-r[0,1]])
-        else:
-            print('Wrong input')
-            return [0]
+        if r.shape[1] == 1:#Change from vector to matrix
+            return sympy.Matrix([[0.0, -r[2], r[1]],[r[2], 0.0, -r[0]],[-r[1], r[0], 0.0]])
+        else:#Change from matrix to vector
+            return 0.5*sympy.Matrix([r[2,1]-r[1,2], r[0,2]-r[2,0], r[1,0]-r[0,1]])
 
     #Translation transformation. Input is a three-dimensional vector
     def xlt(self, r):
-        #change list into numpy.ndarray, if necessary
-        if type(r) == list:
-            r = numpy.array( r )
 
-        zero = numpy.zeros( (3,3) )
-        identity = numpy.identity(3)
+        zero = sympy.zeros(3)
+        identity = sympy.eye(3)
 
-        #return numpy.bmat( [[identity, zero],[-(self.skew(r)), identity]] )
-        return numpy.array( numpy.bmat( [[identity, zero],[-(self.skew(r)), identity]] ) )
+        return sympy.Matrix( numpy.bmat( [[identity, zero],[-(self.skew(r)), identity]] ) )
+        
 
     #General Plücker transformation for MOTION vectors.
     #Inputs are a general 3D (or 6D) rotation matrix and a 3D traslation
     def pluX(self, plE, r):
 
         if type(plE) == list:
-            plE = numpy.array(plE)
+            plE = sympy.Matrix(plE)
 
         #If we received a 3D rotation matrix, change into 6D
         if plE.shape[0] == 3:
             plE = self.rot(plE)
-
-        return numpy.dot( plE, self.xlt(r) )
+            
+        return plE*(self.xlt(r))
 
     '''
     Plücker transformation for FORCE vectors.
@@ -365,95 +388,106 @@ class rbdaClass():
 
         #change list into numpy.ndarray, if necessary
         if type(pluX) == list:
-            pluX = numpy.array( pluX )
+            pluX = sympy.Matrix( pluX )
         if r is not None and type(r) == list:
-            r = numpy.array( r )
+            r = sympy.Matrix( r )
 
         #If a translation vector is not received,
         #the input pluX is a 6D transformation, just manipulate as necessary
         if r is None:
             out11 = pluX[0:3,0:3]
             out12 = pluX[3:6,0:3]
-            out21 = numpy.zeros( (3,3) )
+            out21 = sympy.zeros( 3 )
             out22 = pluX[0:3,0:3]
 
-            return numpy.bmat([[out11, out12],[out21, out22]])
+            return sympy.Matrix( numpy.bmat([[out11, out12],[out21, out22]]) )
         else:
-            invTrans = numpy.linalg.inv( self.xlt(r) )
-            return numpy.dot( self.rot(pluX), numpy.transpose(invTrans) )
+            invTrans = ( self.xlt(r) ).inv()
+            return (self.rot(pluX))*(invTrans.T)
 
-    
-    #Inverse for pluX
+    #Inverse for pluX. Inputs are a general 3D (or 6D) rotation matrix and a 3D traslation
+    #If receiving a 6 by 6 matrix, only shift its blocks around
     #TODO: Review
-    def invPluX(self, plE, r):
-        B_X_A = self.pluX(plE, r)
+    def invPluX(self, plE, r=None):
+        
+        if plE.shape[0] == 6:
+            B_X_A = plE
+        else:
+            B_X_A = self.pluX(plE, r)
 
-        out11 = numpy.transpose( B_X_A[0:3,0:3] )
-        out12 = numpy.zeros( (3,3) )
-        out21 = numpy.transpose( B_X_A[3:6,0:3] )
+        out11 = (B_X_A[0:3,0:3]).T
+        out12 = sympy.zeros( 3 )
+        out21 = (B_X_A[3:6,0:3]).T
         out22 = out11
 
-        #return A_X_B
-        return numpy.bmat([[out11, out12],[out21, out22]])
+        return sympy.Matrix( numpy.bmat([[out11, out12],[out21, out22]]) )
 
     #Inverse for pluXf
-    #pluX is a 6x6 Plucker transformation or
-    #pluX is a 3-D rotation and r is a translation vector
+    #pluX is a 6x6 Plucker transformation or pluX is a 3-D rotation and r is a translation vector
     #TODO: review
     def invPluXf(self, pluX, r=None):
+        
         B_Xf_A = self.pluXf(pluX, r)
-
-        out11 = numpy.transpose( B_Xf_A[0:3,0:3] )
-        out12 = numpy.transpose( B_Xf_A[0:3,3:6] )
-        out21 = numpy.zeros( (3,3) )
+            
+        out11 = ( B_Xf_A[0:3,0:3] ).T
+        out12 = ( B_Xf_A[0:3,3:6] ).T
+        out21 = sympy.zeros( 3 )
         out22 = out11
 
-        #return A_Xf_B
-        return numpy.bmat([[out11, out12],[out21, out22]])
+        return sympy.Matrix( numpy.bmat([[out11, out12],[out21, out22]]) )
 
     #Definitions of free space for one-dimensional joints
     @staticmethod
     def freeMotionSpan(typeMotion):
-        if typeMotion.lower() == 'revx':
-            return numpy.array([1,0,0,0,0,0]).reshape( (6,1) )
-        elif typeMotion.lower() == 'revy':
-            return numpy.array([0,1,0,0,0,0]).reshape( (6,1) )
-        elif typeMotion.lower() == 'revz':
-            return numpy.array([0,0,1,0,0,0]).reshape( (6,1) )
-        elif typeMotion.lower() == 'tranx':
-            return numpy.array([0,0,0,1,0,0]).reshape( (6,1) )
-        elif typeMotion.lower() == 'trany':
-            return numpy.array([0,0,0,0,1,0]).reshape( (6,1) )
-        elif typeMotion.lower() == 'tranz':
-            return numpy.array([0,0,0,0,0,1]).reshape( (6,1) )
+        if typeMotion.lower() == 'rx':
+            return sympy.Matrix([1.0,0.0,0.0,0.0,0.0,0.0])
+        elif typeMotion.lower() == 'ry':
+            return sympy.Matrix([0.0,1.0,0.0,0.0,0.0,0.0])
+        elif typeMotion.lower() == 'rz':
+            return sympy.Matrix([0.0,0.0,1.0,0.0,0.0,0.0])
+        elif typeMotion.lower() == 'px':
+            return sympy.Matrix([0.0,0.0,0.0,1.0,0.0,0.0])
+        elif typeMotion.lower() == 'py':
+            return sympy.Matrix([0.0,0.0,0.0,0.0,1.0,0.0])
+        elif typeMotion.lower() == 'pz':
+            return sympy.Matrix([0.0,0.0,0.0,0.0,0.0,1.0])
         else:
-            return numpy.zeros(6)
+            return sympy.zeros(6,1)
 
-    #Coordinate transformation. Similarity or congruence
-    def coordinateTransform(self, X, A, transType, inputType):
+    #Coordinate transformation. Similarity or congruence. All 6D Matrices. X is always motion transformation
+    def coordinateTransform(self, X, A, transType, inputType, simplification=True):
         #A.dot(B).dot(C)
         #reduce(numpy.dot, [A1, A2, ..., An])
         #multi_dot([A1d, B, C, D])#
 
         if transType.lower()=='similarity':
             if inputType.lower()=='motion':
-                return reduce(numpy.dot, [X, A, numpy.linalg.inv(X)])
+                #return reduce(numpy.dot, [X, A, numpy.linalg.inv(X)])
+                output = X*A*(X.inv())
             elif inputType.lower()=='force':
-                return reduce(numpy.dot, [self.pluXf(X), A, self.pluXf( numpy.linalg.inv(X))])
+                #return reduce(numpy.dot, [self.pluXf(X), A, self.pluXf( numpy.linalg.inv(X))])
+                output = ( self.pluXf(X) )*A*( self.pluXf(X.inv()) )
             else:
                 print('Incorrect input type')
-                return numpy.zeros((6,6))
+                output = sympy.zeros(6)
         elif transType.lower()=='congruence':
             if inputType.lower()=='motion':
-                return reduce(numpy.dot, [self.pluXf(X), A, numpy.linalg.inv(X)])
+                #return reduce(numpy.dot, [self.pluXf(X), A, numpy.linalg.inv(X)])
+                output = ( self.pluXf(X) )*A*( X.inv() )
             elif inputType.lower()=='force':
-                return reduce(numpy.dot, [X, A, self.pluXf( numpy.linalg.inv(X))])
+                #return reduce(numpy.dot, [X, A, self.pluXf( numpy.linalg.inv(X))])
+                output = X*A*( self.pluXf(X.inv()) )
             else:
                 print('Incorrect input type')
-                return numpy.zeros((6,6))
+                output = sympy.zeros(6)
         else:
             print('Incorrect transformation type')
-            return numpy.zeros((6,6))
+            output = sympy.zeros(6)
+            
+        if simplification is True:
+            return sympy.simplify(output)
+        else:
+            return output
 
     #6D rotation matrix corrresponding to a spherical joint
     def eulerRot(self, angles, typeRot, outputFrame ='local', unit='rad'):
@@ -465,21 +499,28 @@ class rbdaClass():
         #Change units
         if unit.lower() == 'deg':
             angles = numpy.radians(angles)
+            
+        #Change to sympy object
+        angles = sympy.Matrix(angles)
 
         if typeRot.lower() == 'zyx':
-            rotation = reduce(numpy.dot, [self.rotX(angles[2]), self.rotY(angles[1]), self.rotZ(angles[0])])
+            #rotation = reduce(numpy.dot, [self.rotX(angles[2]), self.rotY(angles[1]), self.rotZ(angles[0])])
+            rotation = (self.rotX(angles[2]))*(self.rotY(angles[1]))*(self.rotZ(angles[0]))
         else:
-            rotation = numpy.zeros((6,6))
+            #rotation = numpy.zeros((6,6))
+            rotation = sympy.zeros(6)
 
         if outputFrame.lower() == 'local':
             return rotation
         elif outputFrame.lower() == 'global':
-            return numpy.transpose(rotation)
+            #return numpy.transpose(rotation)
+            return rotation.T
         else:
             print('Desired output frame not recognized. Returning local')
             return rotation
 
     #Jacobian corresponding to a rotation matrix from a spherical joint
+    #TODO Review
     def eulerJacobian(self, angles, typeRot, outputFrame = 'local', unit='rad'):
 
         #Change type if necessary
@@ -489,30 +530,42 @@ class rbdaClass():
         #Change units
         if unit.lower() == 'deg':
             angles = numpy.radians(angles)
+            
+        #Change to sympy
+        angles = sympy.Matrix(angles)
 
         if typeRot.lower() == 'zyx':
-            spanS = [self.freeMotionSpan('revz'), self.freeMotionSpan('revy'), self.freeMotionSpan('revx')]
+            spanS = sympy.zeros(3,6)
+            spanS[0,:] = self.freeMotionSpan('rz').reshape(1,6)
+            spanS[1,:] = self.freeMotionSpan('ry').reshape(1,6)
+            spanS[2,:] = self.freeMotionSpan('rx').reshape(1,6)
+            #spanS = [self.freeMotionSpan('rz'), self.freeMotionSpan('ry'), self.freeMotionSpan('rx')]
             rots = [self.rotZ(angles[0]), self.rotY(angles[1]), self.rotX(angles[2])]
             rot = self.rotZ(angles[0])
-
+                    
             #acumulate rotations
             for i in range(1,3):
-                rot = numpy.dot( rots[i], rot ) #total rotation matrix
+                #rot = numpy.dot( rots[i], rot ) #total rotation matrix
+                rot = rots[i]*rot #total rotation matrix
 
                 #propagate them to each matrix spanS
                 for j in range(i):
-                    spanS[j] =  numpy.dot( rots[i], spanS[j])
+                    #spanS[j] =  numpy.dot( rots[i], spanS[j])
+                    spanS[j,:] = ( rots[i]*(spanS[j,:].reshape(6,1)) ).reshape(1,6)
 
             #return a 6x3 matrix
-            spanS = numpy.array(spanS).transpose()
+            #spanS = numpy.array(spanS).transpose()
+            spanS = spanS.T
         else:
-            spanS = numpy.zeros( (6,3) )
+            #spanS = numpy.zeros( (6,3) )
+            spanS = numpy.zeros(6,3)
 
         #if the frame is the global, multiply by the corresponding matrix
         if outputFrame.lower() == 'local':
             return spanS
         elif outputFrame.lower() == 'global':
-            return numpy.dot( numpy.transpose(rot), spanS )
+            #return numpy.dot( numpy.transpose(rot), spanS )
+            return (rot.T)*spanS
         else:
             print('Desired output frame not recognized. Returning local')
             return spanS
@@ -524,62 +577,69 @@ class rbdaClass():
     For planr floating base (type='fbPlanar'), the order of coordinates is [theta,x,y]
     FIXME: Currently, only 1DOF joints are supported
     '''
-    def jcalc(self,typeJoint,q,unit='rad'):
+    def jcalc(self, typeJoint, q, unit='rad'):
         
         #Change units
-        if unit.lower() == 'deg':
-            q = math.radians(q)
+        if isinstance(math.pi, numbers.Number):
+            if unit.lower() == 'deg':
+                q = math.radians(q)
 
         if typeJoint.lower() == 'rx':
             XJ = self.rotX(q)
-            S = numpy.array([1.0,0.0,0.0,0.0,0.0,0.0])           
+            S = self.freeMotionSpan(typeJoint) 
         elif typeJoint.lower() == 'ry':
             XJ = self.rotY(q)
-            S = numpy.array([0.0,1.0,0.0,0.0,0.0,0.0])
+            S = self.freeMotionSpan(typeJoint)
         elif typeJoint.lower() == 'rz':
             XJ = self.rotZ(q)
-            S = numpy.array([0.0,0.0,1.0,0.0,0.0,0.0])  
+            S = self.freeMotionSpan(typeJoint)  
         elif typeJoint.lower() == 'px':
             XJ = self.xlt([q,0,0])
-            S = numpy.array([0.0,0.0,0.0,1.0,0.0,0.0])  
+            S = self.freeMotionSpan(typeJoint)  
         elif typeJoint.lower() == 'py':
             XJ = self.xlt([0,q,0])
-            S = numpy.array([0.0,0.0,0.0,0.0,1.0,0.0])  
+            S = self.freeMotionSpan(typeJoint)  
         elif typeJoint.lower() == 'pz':
             XJ = self.xlt([0,0,q])
-            S = numpy.array([0.0,0.0,0.0,0.0,0.0,1.0])
+            S = self.freeMotionSpan(typeJoint)
         else:
             print("Joint type not recognized")
-            XJ = numpy.identity(6)
-            S = numpy.zeros(6)
+            XJ = sympy.eye(6)
+            S = sympy.zeros(6)
 
-        return XJ,S            
-        
+        return XJ,S
+
     '''
     Xpts(pluX, pts): Transform points between coordinate frames.
     'pts' can be a vector or a list of vectors.
     'pluX' is a 6x6 Plucker transformation.
-    points 'pts' are expressed in reference frame A, and pluX is a transformation \
-    from frame A to B. Output is a list of points w.r.t. frame B.
+    points 'pts' are expressed in reference frame A, and pluX is a transformation from frame A to B.
+    Output is a list of points w.r.t. frame B.
     '''
     def Xpts(self, pluX, pts):
 
         #Change type if necessary
         if type(pluX) == list:
-            pluX = numpy.array(pluX).astype(float)
+            #pluX = numpy.array(pluX).astype(float)
+            pluX = sympy.Matrix(pluX)
         if type(pts) == list:
-            pts = numpy.array(pts).astype(float)
+            pts = numpy.array(pts)#Keep this as an array
             
         E = pluX[0:3,0:3]#Rotation component of pluX
-        r = -self.skew( numpy.dot( numpy.transpose(E), pluX[3:6,0:3] ) )#Translation component of pluX
+        #r = -self.skew( numpy.dot( numpy.transpose(E), pluX[3:6,0:3] ) )#Translation component of pluX
+        r = -self.skew( ( E.T )*( pluX[3:6,0:3] ) )#Translation component of pluX
     
         if pts.ndim == 1:
-            newPoints = numpy.dot( E, pts-r )
+            #newPoints = numpy.dot( E, pts-r )
+            newPoints = E*sympy.Matrix(pts-r)
         else:
-            newPoints = pts
+            newPoints = []
             #newPoints = [(numpy.dot(E,point-r)) for point in pts]
             for i,point in enumerate(pts):
-                newPoints[i] = numpy.dot(E, point-r)
+                #newPoints[i] = numpy.dot(E, point-r)
+                point = sympy.Matrix(point)
+                #newPoints[i] = E*(point-r)
+                newPoints.append( E*(point-r) )
         
         return newPoints
         
@@ -596,41 +656,60 @@ class rbdaClass():
             q = numpy.array(q)
         if unit.lower() == 'deg':
             q = numpy.radians(q)
+            
+        #Change to sympy
+        q = sympy.Matrix(q)
         
         if self._modelCreated:
             
+#            parentArray = self.model['parents']
+#            Xup = numpy.zeros( (self.model['nB'], 6, 6) )
+#            S = numpy.zeros( (self.model['nB'], 6) )
+#            X0 = numpy.zeros( (self.model['nB'], 6, 6) )
+#            invX0 = numpy.zeros( (self.model['nB'], 6, 6) )
+#            jacobian = numpy.zeros( (self.model['nB'], 6, self.model['nB']) )
             parentArray = self.model['parents']
-            Xup = numpy.zeros( (self.model['nB'], 6, 6) )
-            S = numpy.zeros( (self.model['nB'], 6) )
-            X0 = numpy.zeros( (self.model['nB'], 6, 6) )
-            invX0 = numpy.zeros( (self.model['nB'], 6, 6) )
-            jacobian = numpy.zeros( (self.model['nB'], 6, self.model['nB']) )
+            Xup = [sympy.zeros( 6, 6 ) for i in range(self.model['nB'])]
+            S = [sympy.zeros( 6, 1 ) for i in range(self.model['nB'])]
+            X0 = [sympy.zeros( 6, 6 ) for i in range(self.model['nB'])]
+            invX0 = [sympy.zeros( 6, 6 ) for i in range(self.model['nB'])]
+            jacobian = [sympy.zeros( 6, self.model['nB'] ) for i in range(self.model['nB'])]
             
             for i in range(self.model['nB']):
+                
+                #Obtain JX and S
                 XJ,tempS = self.jcalc((self.model['jointType'])[i], q[i])
-                #S[i] = numpy.reshape(tempS, (6,1))
+                
                 S[i] = tempS
-                Xup[i] = numpy.dot( XJ, (self.model['XT'])[i] )
+                #Xup[i] = numpy.dot( XJ, numpy.array( (self.model['XT'])[i] ) )
+                Xup[i] = XJ*( numpy.array( (self.model['XT'])[i] ) )
                 
                 #If the parent is the base
                 if parentArray[i] == -1:
                     X0[i] = Xup[i]
                 else:
-                    X0[i] = numpy.dot( Xup[i], X0[i-1] )
+                    #X0[i] = numpy.dot( Xup[i], X0[i-1] )
+                    X0[i] =  Xup[i]*X0[i-1]
                     
                 #Obtain inverse mappings
-                invX0[i] = numpy.linalg.inv(X0[i])
+                #invX0[i] = numpy.linalg.inv(X0[i])
+                #invX0[i] = (X0[i]).inv()
+                invX0[i] = self.invPluX(X0[i], None)
                 
                 #We change the previous S into local coordinates of Body-i
                 for j in range(i):
-                    S[j] = numpy.dot( Xup[i], S[j] )
+                    #S[j] = numpy.dot( Xup[i], S[j] )
+                    S[j] = Xup[i]*S[j]
                     
-                jacobian[i] = numpy.transpose(S)
+                #jacobian[i] = numpy.transpose(S)
+                jacobian[i] = sympy.Matrix( numpy.transpose(S) )
+                pass
                 
         else:
             print("Model not yet created. Use createModel() first.")
             return
         
+        #Return as numpy arrays. Convert to sympy Matrices outside if necessary
         return Xup,X0,invX0,jacobian
         
     '''
@@ -692,9 +771,8 @@ class rbdaClass():
     The input ' v' is a twist (either 3 D or 6 D).*)
     '''
     def crossM(self, v):
-        #Change type if necessary
-        if type(v) == list:
-            v = numpy.array(v).astype(float)
+        
+        v = numpy.array(v)
             
         if v.size == 6:
             out11 = self.skew(v[0:3])
@@ -705,15 +783,17 @@ class rbdaClass():
             out =  numpy.bmat([[out11, out12],[out21, out22]])
         else:
             out = numpy.array( [[0,0,0],[v[2],0,-v[0]],[-v[1],v[0],0]] )
-            
-        return out
+        
+        #return out
+        return sympy.Matrix(out)
         
     '''
     crossF[v]. Spatial cross product for FORCE vectors. 
     The input ' v' is a twist (either 3 D or 6 D).
     '''
     def crossF(self, v):
-        return -numpy.transpose(self.crossM(v))
+        #return -numpy.transpose(self.crossM(v))
+        return -(self.crossM(v)).T
 
     '''
     inertiaTensor[params, type, connectivity] : Calculate inertia tensor of a body
@@ -757,6 +837,7 @@ class rbdaClass():
             Ixx = Iyy = Izz = 0.0
             
         inertiaT = numpy.array( [[Ixx,0.0,0.0],[0.0,Iyy,0.0],[0.0,0.0,Izz]] )
+        #inertiaT = sympy.Matrix( [[Ixx,0.0,0.0],[0.0,Iyy,0.0],[0.0,0.0,Izz]] )
         
         return mass*inertiaT
 
@@ -770,6 +851,7 @@ class rbdaClass():
         #If the input is a 3D vector, obtain the 6x6 rbi
         if len(center) == 3:
             skewC = self.skew(center)
+            skewC = numpy.array(skewC)
             tranSkewC = numpy.transpose(skewC)
             
             out11 = inertiaT + mass*numpy.dot( skewC,tranSkewC )
@@ -795,7 +877,7 @@ class rbdaClass():
             print("Wrong dimenstions")
             out = numpy.zeros((3,3))
             
-        return out
+        return sympy.Matrix(out)
         
     '''
     contactConstraints(): Create spanning matrix T for forces and for free motions S. 
@@ -805,24 +887,17 @@ class rbdaClass():
         
         if contactType.lower() == "pointcontactwithoutfriction":
             if normalAxis.lower() == 'x':
-                T = numpy.array( [[0,0,0,1,0,0]] )
-                T = numpy.transpose(T)
-                
+                T = sympy.Matrix( [0.0,0.0,0.0,1.0,0.0,0.0] )
                 S = numpy.delete( numpy.identity(6), 3, 1 ) 
             elif normalAxis.lower() == 'y':
-                T = numpy.array( [[0,0,0,0,1,0]] )
-                T = numpy.transpose(T)
-                
+                T = sympy.Matrix( [0.0,0.0,0.0,0.0,1.0,0.0] )
                 S = numpy.delete( numpy.identity(6), 4, 1 ) 
             elif normalAxis.lower() == 'z':
-                T = numpy.array( [[0,0,0,0,0,1]] )
-                T = numpy.transpose(T)
-                
+                T = sympy.Matrix( [0.0,0.0,0.0,0.0,0.0,1.0] )               
                 S = numpy.delete( numpy.identity(6), 5, 1 ) 
         elif contactType.lower() == "planarhardcontact":
-            T = numpy.array( [[0,0,0,1,0,0],[0,0,0,0,1,0]] )
-            T = numpy.transpose(T)
-            
+            T = sympy.Matrix( [[0.0,0.0,0.0,1.0,0.0,0.0],[0.0,0.0,0.0,0.0,1.0,0.0]] )
+            T = T.T
             S = numpy.delete( numpy.identity(6), [3,4], 1 ) 
         else:
             print('Contact type not supported')
@@ -832,7 +907,7 @@ class rbdaClass():
         return T,S
         
     #def constrainedSubspace(self, constraintsInformation, Jacobians, beta, velocities, unit='rad'):
-    #TODO: I cannot get (easily) the derivative of the constraint
+    #TODO: complete
     def constrainedSubspace(self, constraintsInformation, Jacobians, unit='rad'):
         
         if self._modelCreated:
@@ -841,7 +916,7 @@ class rbdaClass():
             dof = self.model['DoF']
             
             #Constraint matrix (nc times nDoF)
-            A = numpy.zeros( (nc,dof) )
+            A = sympy.zeros( nc,dof )
     
             # Fill the constraint matrix. One row per constraint        
             for i in range(nc):
@@ -865,44 +940,122 @@ class rbdaClass():
                     pass
                 elif constraintType.lower() == 'non-slippage':
                     T,S = self.contactConstraints(contactModel)
-                    A[i] = reduce(numpy.dot, [numpy.transpose(T), self.xlt(contactPoint), Jacobians[constrainedBody]])
+                    #A[i] = reduce(numpy.dot, [numpy.transpose(T), self.xlt(contactPoint), Jacobians[constrainedBody]])
+                    A[i,:] = ( T.T )*( self.xlt(contactPoint) )*( Jacobians[constrainedBody] )
                 elif constraintType.lower() == 'non-slippagewithfriction':
                     T,S = self.contactConstraints(contactModel)
-                    A[i] = reduce(numpy.dot, [numpy.transpose(T), self.xlt(contactPoint), Jacobians[constrainedBody]])
+                    #A[i] = reduce(numpy.dot, [numpy.transpose(T), self.xlt(contactPoint), Jacobians[constrainedBody]])
+                    A[i,:] = ( T.T )*( self.xlt(contactPoint) )*( Jacobians[constrainedBody] )
                 elif constraintType.lower() == 'bodycontact':
                     T,S = self.contactConstraints(contactModel)
                     if contactingSide.lower() == 'left':
-                        A[i] = reduce(numpy.dot, [numpy.transpose(T), self.pluX(self.rz(contactAngle), contactPoint), Jacobians[constrainedBody]])
+                        #A[i] = reduce(numpy.dot, [numpy.transpose(T), self.pluX(self.rz(contactAngle), contactPoint), Jacobians[constrainedBody]])
+                        A[i,:] = ( T.T )*( self.pluX(self.rz(contactAngle), contactPoint) )*( Jacobians[constrainedBody] )
                     elif contactingSide.lower() == 'right':
                         contactAngle = contactAngle + math.pi
-                        A[i] = reduce(numpy.dot, [numpy.transpose(T), self.pluX(self.rz(contactAngle), contactPoint), Jacobians[constrainedBody]])
+                        #A[i] = reduce(numpy.dot, [numpy.transpose(T), self.pluX(self.rz(contactAngle), contactPoint), Jacobians[constrainedBody]])
+                        A[i,:] = ( T.T )*( self.pluX(self.rz(contactAngle), contactPoint) )*( Jacobians[constrainedBody] )
                     else:
                         print('Wrong side')
                 else:
                     print('Wrong contraint type')
             
-            # How to get derivative of the constraint matrix?
-            # derConstraintMatrixA = d A/dt
+            # How to get derivative of the constraint matrix? derConstraintMatrixA = d A/dt
+            derA = A.diff(sympy.symbols('t'))
+            
             # kappa = numpy.dot( derConstraintMatrixA, velocities )
+            kappa = derA*(sympy.Matrix(self.dq))
+            
             # kappa_stab = beta*numpy.dot( constraintMatrix, velocities )
+            beta = 0.1
+            kappa_stab = beta*kappa
                    
-            return A
+            return A, kappa
         else:
             print("Model not yet created. Use createModel() first.")
             return
             
-    # 
-    def ID(self, q, qd, qdd, fext = []):
+#    def ID(self, q, qd, qdd, fext = []):
+#        
+#        #change list into numpy.ndarray, if necessary
+#        if type(q) == list:
+#            q = numpy.array( q )
+#        if type(qd) == list:
+#            qd = numpy.array( qd )
+#        if type(q) == list:
+#            qdd = numpy.array( qdd )
+#        if type(fext) == list:
+#            fext = numpy.array( fext )
+#
+#        # Only continue if createModel has been called                
+#        if self._modelCreated:
+#            
+#            dof = self.model['DoF']
+#            nBodies = self.model['nB']
+#         
+#            Xup = numpy.zeros( (nBodies, 6, 6) )
+#            S = numpy.zeros( (nBodies, 6) )
+#            X0 = numpy.zeros( (nBodies, 6, 6) )
+#            parentArray = self.model['parents']
+#            
+#            v = numpy.zeros( (nBodies, 6) )
+#            a = numpy.zeros( (nBodies, 6) )
+#            f = numpy.zeros( (nBodies, 6) )
+#            
+#            tau = numpy.zeros( dof )
+#            aGrav = self.model['inertialGrav']
+#            
+#            if fext.size == 0:
+#                fext = numpy.zeros( (nBodies, 6) )
+#                
+#            for i in range(nBodies):
+#                
+#                XJ,tempS = self.jcalc((self.model['jointType'])[i], q[i])
+#                #S[i] = numpy.reshape(tempS, (6,1))
+#                S[i] = tempS
+#                vJ = S[i]*qd[i]
+#                Xup[i] = numpy.dot( XJ, (self.model['XT'])[i] )
+#                
+#                #If the parent is the base
+#                if parentArray[i] == -1:
+#                    X0[i] = Xup[i]
+#                    v[i] = vJ
+#                    a[i] = numpy.dot( Xup[i], -aGrav ) + S[i]*qdd[i]
+#                else:
+#                    X0[i] = numpy.dot( Xup[i], X0[i-1] )
+#                    v[i] = numpy.dot( Xup[i], v[parentArray[i]] ) + vJ
+#                    a[i] = numpy.dot( Xup[i], a[parentArray[i]] ) + S[i]*qdd[i] + numpy.dot( self.crossM(v[i]), vJ )
+#                
+#                RBInertia = (self.model['rbInertia'])[i]
+#                
+#                f1 = numpy.dot( RBInertia, a[i] )
+#                f2 = reduce(numpy.dot, [self.crossF(v[i]), RBInertia, v[i]])
+#                f3 = numpy.dot( numpy.transpose( numpy.linalg.inv( X0[i] ) ), fext[i] )
+#                
+#                f[i] = f1 + f2 - f3
+#                #f[i] = numpy.dot( RBInertia, a[i] ) + reduce(numpy.dot, [self.crossF(v[i]), RBInertia, v[i]]) - numpy.dot( numpy.transpose( numpy.linalg.inv( X0[i] ) ), fext[i] )
+#
+#            for i in range(nBodies-1,-1,-1):
+#                tau[i] = numpy.dot( S[i], f[i] )
+#                
+#                #If the parent is not the base
+#                if parentArray[i] != -1:
+#                    f[parentArray[i]] = f[parentArray[i]] + numpy.dot( numpy.transpose(Xup[i]), f[i] )
+#                    
+#            return tau
+#                
+#            
+#        else:
+#            print("Model not yet created. Use createModel() first.")
+#            return
+    
+    def ID(self, q, qd, qdd, fext = [], gravTerms=True):
         
-        #change list into numpy.ndarray, if necessary
-        if type(q) == list:
-            q = numpy.array( q )
-        if type(qd) == list:
-            qd = numpy.array( qd )
-        if type(q) == list:
-            qdd = numpy.array( qdd )
-        if type(fext) == list:
-            fext = numpy.array( fext )
+        #change list into sympy.Matrix
+        q = sympy.Matrix( q )
+        qd = sympy.Matrix( qd )
+        qdd = sympy.Matrix( qdd )
+        fext = sympy.Matrix( fext ) #Each row represents a wrench applied to a body
 
         # Only continue if createModel has been called                
         if self._modelCreated:
@@ -910,54 +1063,59 @@ class rbdaClass():
             dof = self.model['DoF']
             nBodies = self.model['nB']
          
-            Xup = numpy.zeros( (nBodies, 6, 6) )
-            S = numpy.zeros( (nBodies, 6) )
-            X0 = numpy.zeros( (nBodies, 6, 6) )
+            Xup = list(sympy.zeros(6,6) for i in range(nBodies))
+            S = list(sympy.zeros(6,1) for i in range(nBodies))
+            X0 = list(sympy.zeros(6,6) for i in range(nBodies))
             parentArray = self.model['parents']
             
-            v = numpy.zeros( (nBodies, 6) )
-            a = numpy.zeros( (nBodies, 6) )
-            f = numpy.zeros( (nBodies, 6) )
+            v = list(sympy.zeros(6,1) for i in range(nBodies))
+            a = list(sympy.zeros(6,1) for i in range(nBodies))
+            f = list(sympy.zeros(6,1) for i in range(nBodies))
             
-            tau = numpy.zeros( dof )
+            tau = sympy.zeros( dof,1 )
             aGrav = self.model['inertialGrav']
             
-            if fext.size == 0:
-                fext = numpy.zeros( (nBodies, 6) )
+            if fext.shape[0] == 0:
+                fext = list(sympy.zeros(6,1) for i in range(nBodies))
                 
             for i in range(nBodies):
                 
                 XJ,tempS = self.jcalc((self.model['jointType'])[i], q[i])
-                #S[i] = numpy.reshape(tempS, (6,1))
                 S[i] = tempS
                 vJ = S[i]*qd[i]
-                Xup[i] = numpy.dot( XJ, (self.model['XT'])[i] )
+                Xup[i] =  XJ*( (self.model['XT'])[i] )
                 
                 #If the parent is the base
                 if parentArray[i] == -1:
                     X0[i] = Xup[i]
                     v[i] = vJ
-                    a[i] = numpy.dot( Xup[i], -aGrav ) + S[i]*qdd[i]
+                    
+                    #Consider gravitational terms
+                    if gravTerms:
+                        a[i] = Xup[i]*(-aGrav) + S[i]*qdd[i]
+                    else:
+                        a[i] = S[i]*qdd[i]
                 else:
-                    X0[i] = numpy.dot( Xup[i], X0[i-1] )
-                    v[i] = numpy.dot( Xup[i], v[parentArray[i]] ) + vJ
-                    a[i] = numpy.dot( Xup[i], a[parentArray[i]] ) + S[i]*qdd[i] + numpy.dot( self.crossM(v[i]), vJ )
-                
+                    X0[i] = Xup[i]*X0[i-1]
+                    v[i] = Xup[i]*v[parentArray[i]] + vJ
+                    a[i] = Xup[i]*a[parentArray[i]] + S[i]*qdd[i] + self.crossM(v[i])*vJ
+                    
+                    
                 RBInertia = (self.model['rbInertia'])[i]
                 
-                f1 = numpy.dot( RBInertia, a[i] )
-                f2 = reduce(numpy.dot, [self.crossF(v[i]), RBInertia, v[i]])
-                f3 = numpy.dot( numpy.transpose( numpy.linalg.inv( X0[i] ) ), fext[i] )
+                #f[i] = numpy.dot( RBInertia, a[i] ) + reduce(numpy.dot, [self.crossF(v[i]), RBInertia, v[i]]) - numpy.dot( numpy.transpose( numpy.linalg.inv( X0[i] ) ), fext[i] )
+                f1 = RBInertia*a[i]
+                f2 = ( self.crossF(v[i]) )*( RBInertia )*( v[i] )
+                f3 = ( (self.invPluX(X0[i])).T )*( fext[i] )
                 
                 f[i] = f1 + f2 - f3
-                #f[i] = numpy.dot( RBInertia, a[i] ) + reduce(numpy.dot, [self.crossF(v[i]), RBInertia, v[i]]) - numpy.dot( numpy.transpose( numpy.linalg.inv( X0[i] ) ), fext[i] )
 
             for i in range(nBodies-1,-1,-1):
-                tau[i] = numpy.dot( S[i], f[i] )
+                tau[i] = (S[i].T)*f[i]
                 
                 #If the parent is not the base
                 if parentArray[i] != -1:
-                    f[parentArray[i]] = f[parentArray[i]] + numpy.dot( numpy.transpose(Xup[i]), f[i] )
+                    f[parentArray[i]] = f[parentArray[i]] + ( (Xup[i]).T )*(f[i] )
                     
             return tau
                 
@@ -965,7 +1123,9 @@ class rbdaClass():
         else:
             print("Model not yet created. Use createModel() first.")
             return
-            
+    
+#---------------Tested until here [2017-09-13]
+    
     '''
     HandC(q,qd,fext,gravityTerms): Coefficients of the eqns. of motion.
     gravityTerms is a boolean variable to decide if gravitational terms should be included in the output.
