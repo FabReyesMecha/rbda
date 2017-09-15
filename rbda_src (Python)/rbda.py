@@ -2,6 +2,8 @@
 """
 Created on Wed Jan 25 03:09:34 2017
 
+RBDA v0.7
+
 Small module containing Algorithms for calculating twistes and wrenches.
 This module is just a small portion of algorithms available on:
     Rigid Body Dynamic Algorithms, by Featherstone, Roy (2008)
@@ -25,7 +27,10 @@ plu.rx(45, unit='deg')
 ----------------------------------------------------------------------------
 Log:
 
-[2017-09-06]:   Created v0.6
+
+[2017-09-15]:   Created v0.7
+                -Basic algorithms up to FDab are ready
+[2017-09-14]:   Created v0.6
                 -Most algorithms up to Forward Dynamics Composite-rigid-body work symbolically and numerically
 [2017-09-13]:   Updated symbolic version
 [2017-09-06]:   Created v0.5 - Symbolic version
@@ -70,22 +75,24 @@ derRot = rot.diff( sympy.Symbol('t') )
 import numpy
 import math
 import copy #for deepcopy
-import numbers
+#import numbers
 
 import sympy
 from sympy.physics.vector import dynamicsymbols
-from sympy import diff, Symbol
+#from sympy import diff, Symbol
 
 class rbdaClass():
 
     #Constructor
     def __init__(self):
-        self.__version__ = '0.6.0'
+        self.__version__ = '0.7.0'
         self._modelCreated = False
         
     #Created model
     '''
     example:
+    
+    # robot without explicit floating base and 5 links -----------
     
     bodiesParams ={
     'mass':[0,0,1,1,1],
@@ -106,7 +113,7 @@ class rbdaClass():
     
     or
     
-    # robot with floating base ---------------------
+    # robot with floating base and 3 links ----------------------
     
     bodiesParams ={
     'mass':[1,1,1],
@@ -125,6 +132,8 @@ class rbdaClass():
     
     plu.createModel(True, 2, '[kg m s]', bodiesParams, None, None)
     
+    # 1 body (unilateral) constraint ------------------------------
+    
     constraintsInformation={
     'nc':1,
     'body':[2],
@@ -134,6 +143,8 @@ class rbdaClass():
     'contactModel':['pointContactWithoutFriction'],
     'contactingSide':['left']
     }
+    
+    # 3 constraints (one body contact and two friction cones) -----
     
     constraintsInformation={
     'nc':3,
@@ -176,6 +187,9 @@ class rbdaClass():
         
         # Create symbolic vectors
         
+        #A symbol for time
+        self.time = sympy.symbols('t')
+        
         # Option 1: Array of symbols. However, they do not depend on time
 #        self.qVector = sympy.symarray( 'qVector', self.model['DoF'] )
 #        self.dq = sympy.symarray( 'dq', self.model['DoF'] )
@@ -188,6 +202,13 @@ class rbdaClass():
         self.qVector = dynamicsymbols(qVector)
         self.dq = dynamicsymbols(dq)
         self.ddq = dynamicsymbols(ddq)
+        
+        #1st order derivatives of the joint angles
+        self.qDer = [sympy.diff(var, self.time) for var in self.qVector]
+        self.qDerDer = [sympy.diff(var, self.time, 2) for var in self.qVector]
+        
+        #tuples for substituting Derivative(q(t),t) for dq
+        self.stateSym = zip(self.qDer, self.dq) + zip(self.qDerDer, self.ddq)
         
         # Option 3: return a numpy array
 #        self.qVector = numpy.array( dynamicsymbols(qVector) )
@@ -214,7 +235,7 @@ class rbdaClass():
         elif self.model['gravityAxis'].lower() == 'z':
             self.model['inertialGrav'] = numpy.array( [0.0,0.0,0.0,0.0,0.0,-(self.model['g'])] )
         else:
-            print('Gravity direction not recogniez. Assuming it is in the y-axis.')
+            print('Gravity direction not recognized. Assuming it is in the y-axis.')
             self.model['inertialGrav'] = numpy.array( [0.0,0.0,0.0,0.0,-(self.model['g']),0.0] )
         
         #assign parameters. If there is a floating base, then there should be two virtual (massless) links
@@ -493,7 +514,7 @@ class rbdaClass():
     
                 out =  sympy.Matrix( numpy.bmat([[out11, out12],[out21, out22]]) )
             else:
-                #TODO Improve this. Avoid inverse
+                #FIXME Improve this. Avoid inverse
                 invTrans = ( self.xlt(r, symbolic=True) ).inv()
                 out =  (self.rot(pluX, symbolic=True))*(invTrans.T)
                 
@@ -515,7 +536,7 @@ class rbdaClass():
     
                 out =  numpy.bmat([[out11, out12],[out21, out22]])
             else:
-                #TODO Improve this. Avoid inverse
+                #FIXME Improve this. Avoid inverse
                 invTrans = numpy.linalg.inv( self.xlt(r) )
                 out =  numpy.dot( self.rot(pluX), numpy.transpose(invTrans) )
                 
@@ -723,57 +744,80 @@ class rbdaClass():
         else:
             print('Desired output frame not recognized. Returning local')
             return rotation
-#
-#    #Jacobian corresponding to a rotation matrix from a spherical joint
-#    #TODO Review
-#    def eulerJacobian(self, angles, typeRot, outputFrame = 'local', unit='rad'):
-#
-#        #Change type if necessary
-#        if type(angles) == list:
-#            angles = numpy.array(angles)
-#
-#        #Change units
-#        if unit.lower() == 'deg':
-#            angles = numpy.radians(angles)
-#            
-#        #Change to sympy
-#        angles = sympy.Matrix(angles)
-#
-#        if typeRot.lower() == 'zyx':
-#            spanS = sympy.zeros(3,6)
-#            spanS[0,:] = self.freeMotionSpan('rz').reshape(1,6)
-#            spanS[1,:] = self.freeMotionSpan('ry').reshape(1,6)
-#            spanS[2,:] = self.freeMotionSpan('rx').reshape(1,6)
-#            #spanS = [self.freeMotionSpan('rz'), self.freeMotionSpan('ry'), self.freeMotionSpan('rx')]
-#            rots = [self.rotZ(angles[0]), self.rotY(angles[1]), self.rotX(angles[2])]
-#            rot = self.rotZ(angles[0])
-#                    
-#            #acumulate rotations
-#            for i in range(1,3):
-#                #rot = numpy.dot( rots[i], rot ) #total rotation matrix
-#                rot = rots[i]*rot #total rotation matrix
-#
-#                #propagate them to each matrix spanS
-#                for j in range(i):
-#                    #spanS[j] =  numpy.dot( rots[i], spanS[j])
-#                    spanS[j,:] = ( rots[i]*(spanS[j,:].reshape(6,1)) ).reshape(1,6)
-#
-#            #return a 6x3 matrix
-#            #spanS = numpy.array(spanS).transpose()
-#            spanS = spanS.T
-#        else:
-#            #spanS = numpy.zeros( (6,3) )
-#            spanS = numpy.zeros(6,3)
-#
-#        #if the frame is the global, multiply by the corresponding matrix
-#        if outputFrame.lower() == 'local':
-#            return spanS
-#        elif outputFrame.lower() == 'global':
-#            #return numpy.dot( numpy.transpose(rot), spanS )
-#            return (rot.T)*spanS
-#        else:
-#            print('Desired output frame not recognized. Returning local')
-#            return spanS
+
+    #Jacobian corresponding to a rotation matrix from a spherical joint
+    def eulerJacobian(self, angles, typeRot, outputFrame = 'local', unit='rad', symbolic=False):
+
+        #If using symbolic values, use sympy
+        if symbolic:
+            #Change type if necessary
+            if type(angles) == list:
+                angles = sympy.Matrix(angles)
+                
+            if typeRot.lower() == 'zyx':
+                spanS = sympy.zeros(3,6)
+                spanS[0,:] = self.freeMotionSpan('rz').reshape(1,6)
+                spanS[1,:] = self.freeMotionSpan('ry').reshape(1,6)
+                spanS[2,:] = self.freeMotionSpan('rx').reshape(1,6)
+                #spanS = [self.freeMotionSpan('rz'), self.freeMotionSpan('ry'), self.freeMotionSpan('rx')]
+                rots = \
+                [self.rotZ(angles[0], symbolic=True), self.rotY(angles[1], symbolic=True), self.rotX(angles[2], symbolic=True)]
+                rot = self.rotZ(angles[0], symbolic=True)
+                        
+                #acumulate rotations
+                for i in range(1,3):
+                    rot = rots[i]*rot #total rotation matrix
+    
+                    #propagate them to each matrix spanS
+                    for j in range(i):
+                        spanS[j,:] = ( rots[i]*(spanS[j,:].reshape(6,1)) ).reshape(1,6)
+    
+                #return a 6x3 matrix
+                spanS = spanS.T
+            else:
+                spanS = sympy.zeros(6,3)
+
+        #Otherwise use numpy
+        else:
+            #Change type if necessary
+            if type(angles) == list:
+                angles = numpy.array(angles)
+    
+            #Change units
+            if unit.lower() == 'deg':
+                angles = numpy.radians(angles)
+                
+            if typeRot.lower() == 'zyx':
+                spanS = numpy.bmat( [self.freeMotionSpan('rz'), self.freeMotionSpan('ry'), self.freeMotionSpan('rx')] )
+                spanS = numpy.array(spanS.transpose())
+                
+                rots = [self.rotZ(angles[0]), self.rotY(angles[1]), self.rotX(angles[2])]
+                rot = self.rotZ(angles[0])
+    
+                #acumulate rotations
+                for i in range(1,3):
+                    rot = numpy.dot( rots[i], rot ) #total rotation matrix
+    
+                    #propagate them to each matrix spanS
+                    for j in range(i):
+                        spanS[j] =  numpy.dot( rots[i], spanS[j])
+    
+                #return a 6x3 matrix
+                spanS = spanS.transpose()
+            else:
+                spanS = numpy.zeros( (6,3) )
+                
+        #if the frame is the global, multiply by the corresponding matrix
+        if outputFrame.lower() == 'local':
+            return spanS
+        elif outputFrame.lower() == 'global':
+            if symbolic:
+                return (rot.T)*spanS
+            else:
+                return numpy.dot( numpy.transpose(rot), spanS )
+        else:
+            print('Desired output frame not recognized. Returning local')
+            return spanS
     
     '''
     Calculates Xj and S in body coordinates.
@@ -963,8 +1007,6 @@ class rbdaClass():
         else:
             print("Model not yet created. Use createModel() first.")
             return
-
-    #TODO: DHParamsTranslator
         
     '''
     crossM[v]: Spatial cross product for MOTION vectors. 
@@ -1151,7 +1193,6 @@ class rbdaClass():
         return T,S
         
     #def constrainedSubspace(self, constraintsInformation, Jacobians, beta, velocities, unit='rad'):
-    #TODO: complete
     def constrainedSubspace(self, constraintsInformation, Jacobians, unit='rad', symbolic=False):
         
         if self._modelCreated:
@@ -1250,7 +1291,7 @@ class rbdaClass():
             kappa_stab = beta*kappa
             
             #Return the constraint matrix and stabilization terms
-            return A, kappa
+            return A, kappa, kappa_stab
         else:
             print("Model not yet created. Use createModel() first.")
             return
@@ -1403,7 +1444,6 @@ class rbdaClass():
     gravityTerms is a boolean variable to decide if gravitational terms should be included in the output.
     Set as False if only Coriolis/centripetal effects are desired.
     '''
-    # FIXME: Symbolic values raise an error in Xup[i] = numpy.dot( XJ, XT ), but works outside of the function. why?
     def HandC(self, q, qd, fext = [], gravityTerms = True, symbolic=False):
         
         # Only continue if createModel has been called                
@@ -1523,7 +1563,6 @@ class rbdaClass():
                 for i in range(nBodies):
                     
                     XJ,tempS = self.jcalc((self.model['jointType'])[i], q[i])
-                    #S[i] = tempS
                     S[i] = tempS.flatten()#Make a flat array. This is easier when using numpy
                     vJ = S[i]*qd[i]
                     XT = (self.model['XT'])[i]
@@ -1586,7 +1625,7 @@ class rbdaClass():
             return
     
     '''
-    FDcrb(q, qd, tau, fext): Composite-rigid-Body algorithm. Only works with numerical values
+    FDcrb(q, qd, tau, fext): Composite-rigid-Body algorithm
     '''    
     def FDcrb(self, q, qd, tau, fext = [], symbolic=False):
         
@@ -1604,121 +1643,217 @@ class rbdaClass():
         
         return ddq
         
-#--------------Until here, both symbolic and numeric versions [2017-09-14]-----------------
-        
     '''
     FDab(q, qd, tau, fext, gravityTerms):
     '''
-    def FDab(self, q, qd, tau, fext = [], gravityTerms=True):
+    def FDab(self, q, qd, tau, fext = [], gravityTerms=True, symbolic=False):
         
-        #change list into numpy.ndarray, if necessary
-        if type(q) == list:
-            q = numpy.array( q )
-        if type(qd) == list:
-            qd = numpy.array( qd )
-        if type(fext) == list:
-            fext = numpy.array( fext )
-
         # Only continue if createModel has been called                
         if self._modelCreated:
             
             dof = self.model['DoF']
             nBodies = self.model['nB']
-         
-            Xup = numpy.zeros( (nBodies, 6, 6) )
-            S = numpy.zeros( (dof, 6) )
-            X0 = numpy.zeros( (nBodies, 6, 6) )
-            parentArray = self.model['parents']            
-            v = numpy.zeros( (nBodies, 6) )
-            c = numpy.zeros( (nBodies, 6) )
-
-            
-            if gravityTerms:
-                aGrav = self.model['inertialGrav']
-            else:
-                aGrav = numpy.zeros( 6 )
                 
-            IA = numpy.zeros( (nBodies, 6, 6) )
-            pA = numpy.zeros( (nBodies, 6) )
+            if symbolic:
+                #change list into sympy.Matrix
+                q = sympy.Matrix( q )
+                qd = sympy.Matrix( qd )
+                fext = sympy.Matrix( fext ) #Each row represents a wrench applied to a body
+             
+                Xup = list(sympy.zeros(6,6) for i in range(nBodies))
+                S = list(sympy.zeros(6,1) for i in range(dof))
+                X0 = list(sympy.zeros(6,6) for i in range(nBodies))
+                parentArray = self.model['parents']
                 
-            if fext.size == 0:
-                fext = numpy.zeros( (nBodies, 6) )
+                v = list(sympy.zeros(6,1) for i in range(nBodies))
+                c = list(sympy.zeros(6,1) for i in range(nBodies))
                 
-            # Calculation of Coriolis, centrifugal, and gravitational terms
-            for i in range(nBodies):
-                
-                XJ,tempS = self.jcalc((self.model['jointType'])[i], q[i])
-                S[i] = tempS
-                vJ = S[i]*qd[i]
-                XT = (self.model['XT'])[i]
-                
-                Xup[i] = numpy.dot( XJ, XT )
-
-                #If the parent is the base
-                if parentArray[i] == -1:
-                    X0[i] = Xup[i]
-                    v[i] = vJ
-                    #c[i] = numpy.zeros( 6 )
+                if gravityTerms:
+                    aGrav = self.model['inertialGrav']
                 else:
-                    X0[i] = numpy.dot( Xup[i], X0[i-1] )
-                    v[i] = numpy.dot( Xup[i], v[parentArray[i]] ) + vJ
-                    c[i] = numpy.dot( self.crossM(v[i]), vJ )
-                
-                RBInertia = (self.model['rbInertia'])[i]
-                IA[i] = RBInertia
-                
-                pA1 = reduce(numpy.dot, [self.crossF(v[i]), IA[i], v[i]])
-                pA2 = numpy.dot( numpy.transpose( numpy.linalg.inv( X0[i] ) ), fext[i] )
-                
-                pA[i] = pA1 - pA2
-            
-            # 2nd pass. Calculate articulated-body inertias
-            U = numpy.zeros( (nBodies, 6) )
-            d = numpy.zeros( nBodies )
-            u = numpy.zeros( nBodies )
-            
-            for i in range(nBodies-1,-1,-1):
-                
-                U[i] = numpy.dot( IA[i], S[i] )
-                d[i] = numpy.dot( S[i], U[i] )
-                u[i] = tau[i] - numpy.dot( S[i], pA[i])
-                
-                #invd = 1.0/(d[i] + numpy.finfo(float).eps)
-                invd = 1.0/d[i]
-                
-                #If the parent is the base
-                if parentArray[i] != -1:
-                    Ia = IA[i] - invd*numpy.outer( U[i], U[i] )
-                    pa = pA[i] + numpy.dot( Ia, c[i] ) + invd*u[i]*U[i]
+                    aGrav = sympy.zeros(6,1)
                     
-                    IA[parentArray[i]] = IA[parentArray[i]] + reduce( numpy.dot, [numpy.transpose(Xup[i]), Ia, Xup[i]] )
-                    pA[parentArray[i]] = pA[parentArray[i]] + numpy.dot( numpy.transpose(Xup[i]), pa )
-            
-            
-            # 3rd pass. Calculate spatial accelerations
-            a = numpy.zeros( (nBodies, 6) )
-            qdd = numpy.zeros( dof )
-            
-            for i in range(nBodies):
+                IA = list(sympy.zeros(6,6) for i in range(nBodies))
+                pA = list(sympy.zeros(6,1) for i in range(nBodies))
+                                
+                if fext.shape[0] == 0:
+                    fext = list(sympy.zeros(6,1) for i in range(nBodies))
+                    
+                # Calculation of Coriolis, centrifugal, and gravitational terms
+                for i in range(nBodies):
+                    
+                    XJ,tempS = self.jcalc((self.model['jointType'])[i], q[i], symbolic=True)
+                    S[i] = tempS
+                    vJ = S[i]*qd[i]
+                    XT = (self.model['XT'])[i]
+                    
+                    Xup[i] =  XJ*XT
+    
+                    #If the parent is the base
+                    if parentArray[i] == -1:
+                        X0[i] = Xup[i]
+                        v[i] = vJ
+                    else:
+                        X0[i] = Xup[i]*X0[i-1]
+                        v[i] = Xup[i]*v[parentArray[i]] + vJ
+                        c[i] = self.crossM(v[i], symbolic=True)*vJ
+                        
+                    RBInertia = (self.model['rbInertia'])[i]
+                    IA[i] = sympy.Matrix( RBInertia )
+                    
+                    pA1 = ( self.crossF(v[i], symbolic=True) )*( IA[i] )*( v[i] )
+                    pA2 = ( (self.invPluX(X0[i], symbolic=True)).T )*( fext[i] )
+                    
+                    pA[i] = pA1 - pA2
+                    
+                # 2nd pass. Calculate articulated-body inertias
+                U = list(sympy.zeros(6,1) for i in range(nBodies))
+                d = sympy.zeros( nBodies,1 )
+                u = sympy.zeros( nBodies,1 )
                 
-                invd = 1.0/d[i]
+                for i in range(nBodies-1,-1,-1):
+                    
+                    U[i] = IA[i]*S[i]
+                    d[i] = ( S[i].T )*U[i]
+                    #u[i] = tau[i] - ( S[i].T )*pA[i]
+                    u[i] = tau[i] - S[i].dot(pA[i])
+                    
+                    #invd = 1.0/(d[i] + numpy.finfo(float).eps)
+                    invd = 1.0/d[i]
+                    
+                    #If the parent is the base
+                    if parentArray[i] != -1:
+                        Ia = IA[i] - invd*U[i]*(U[i].T)
+                        pa = pA[i] + Ia*c[i] + invd*u[i]*U[i]
+                        
+                        IA[parentArray[i]] = IA[parentArray[i]] + (Xup[i].T)*Ia*Xup[i]
+                        pA[parentArray[i]] = pA[parentArray[i]] + (Xup[i].T)*pa
+                        
+                # 3rd pass. Calculate spatial accelerations
+                a = list(sympy.zeros(6,1) for i in range(nBodies))
+                qdd = sympy.zeros(dof,1)
                 
-                #If the parent is the base
-                if parentArray[i] == -1:
-                    a[i] = numpy.dot( Xup[i], -aGrav ) + c[i]
+                for i in range(nBodies):
+                    
+                    invd = 1.0/d[i]
+                    
+                    #If the parent is the base
+                    if parentArray[i] == -1:
+                        a[i] = Xup[i]*(-aGrav) + c[i]
+                    else:
+                        a[i] =  Xup[i]*a[parentArray[i]] + c[i]
+                    
+                    #qdd[i] = invd*( u[i] - (U[i].T)*a[i] )
+                    qdd[i] = invd*( u[i] - U[i].dot(a[i]) )
+                    a[i] = a[i] + S[i]*qdd[i]
+                    
+            #Use numpy for numeric computations
+            else:
+                #change list into numpy.ndarray, if necessary
+                if type(q) == list:
+                    q = numpy.array( q )
+                if type(qd) == list:
+                    qd = numpy.array( qd )
+                if type(fext) == list:
+                    fext = numpy.array( fext ) #Each row represents a wrench applied to a body
+             
+                Xup = numpy.zeros( (nBodies, 6, 6) )
+                S = numpy.zeros( (dof, 6) )
+                X0 = numpy.zeros( (nBodies, 6, 6) )
+                parentArray = self.model['parents']            
+                v = numpy.zeros( (nBodies, 6) )
+                c = numpy.zeros( (nBodies, 6) )
+                
+                if gravityTerms:
+                    aGrav = self.model['inertialGrav']
                 else:
-                    a[i] = numpy.dot( Xup[i], a[parentArray[i]] ) + c[i]
+                    aGrav = numpy.zeros( 6 )
+                    
+                IA = numpy.zeros( (nBodies, 6, 6) )
+                pA = numpy.zeros( (nBodies, 6) )
+                    
+                if fext.size == 0:
+                    fext = numpy.zeros( (nBodies, 6) )
+                    
+                # Calculation of Coriolis, centrifugal, and gravitational terms
+                for i in range(nBodies):
+                    
+                    XJ,tempS = self.jcalc((self.model['jointType'])[i], q[i])
+                    S[i] = tempS.flatten()#Make a flat array. This is easier when using numpy
+                    #S[i] = tempS
+                    vJ = S[i]*qd[i]
+                    XT = (self.model['XT'])[i]
+                    
+                    Xup[i] = numpy.dot( XJ, XT )
+    
+                    #If the parent is the base
+                    if parentArray[i] == -1:
+                        X0[i] = Xup[i]
+                        v[i] = vJ
+                        #c[i] = numpy.zeros( 6 )
+                    else:
+                        X0[i] = numpy.dot( Xup[i], X0[i-1] )
+                        v[i] = numpy.dot( Xup[i], v[parentArray[i]] ) + vJ
+                        c[i] = numpy.dot( self.crossM(v[i]), vJ )
+                    
+                    RBInertia = (self.model['rbInertia'])[i]
+                    IA[i] = RBInertia
+                    
+                    pA1 = reduce(numpy.dot, [self.crossF(v[i]), IA[i], v[i]])
+                    pA2 = numpy.dot( numpy.transpose( numpy.linalg.inv( X0[i] ) ), fext[i] )
+                    
+                    pA[i] = pA1 - pA2
                 
-                qdd[i] = invd*(u[i] - numpy.dot( U[i], a[i] ))
-                a[i] = a[i] + S[i]*qdd[i]
+                # 2nd pass. Calculate articulated-body inertias
+                U = numpy.zeros( (nBodies, 6) )
+                d = numpy.zeros( nBodies )
+                u = numpy.zeros( nBodies )
+                
+                for i in range(nBodies-1,-1,-1):
+                    
+                    U[i] = numpy.dot( IA[i], S[i] )
+                    d[i] = numpy.dot( S[i], U[i] )
+                    u[i] = tau[i] - numpy.dot( S[i], pA[i])
+                    
+                    #invd = 1.0/(d[i] + numpy.finfo(float).eps)
+                    invd = 1.0/d[i]
+                    
+                    #If the parent is the base
+                    if parentArray[i] != -1:
+                        Ia = IA[i] - invd*numpy.outer( U[i], U[i] )
+                        pa = pA[i] + numpy.dot( Ia, c[i] ) + invd*u[i]*U[i]
+                        
+                        IA[parentArray[i]] = IA[parentArray[i]] + reduce( numpy.dot, [numpy.transpose(Xup[i]), Ia, Xup[i]] )
+                        pA[parentArray[i]] = pA[parentArray[i]] + numpy.dot( numpy.transpose(Xup[i]), pa )      
+                
+                # 3rd pass. Calculate spatial accelerations
+                a = numpy.zeros( (nBodies, 6) )
+                qdd = numpy.zeros( dof )
+                
+                for i in range(nBodies):
+                    
+                    invd = 1.0/d[i]
+                    
+                    #If the parent is the base
+                    if parentArray[i] == -1:
+                        a[i] = numpy.dot( Xup[i], -aGrav ) + c[i]
+                    else:
+                        a[i] = numpy.dot( Xup[i], a[parentArray[i]] ) + c[i]
+                    
+                    qdd[i] = invd*(u[i] - numpy.dot( U[i], a[i] ))
+                    a[i] = a[i] + S[i]*qdd[i]
+                    
+                #Convert into column vector. The change is in-place
+                qdd.resize( (dof,1) )
             
+            #Return the acceleration of the joints
             return qdd
             
         else:
             print("Model not yet created. Use createModel() first.")
             return
     
-    #-------------------------------------------------------------------
+#--------------Until here, both symbolic and numeric versions [2017-09-15]-----------------
             
     #Absolute angles (assuming open serial kinematic chain). angles is the angles of the joints
     @staticmethod
