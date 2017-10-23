@@ -6,7 +6,9 @@ mkdocs.yml
 *.pyc
 
 # Setuptools distribution folder.
-/dist/
+rbda_src (Python)/dist/
 
 # Python egg metadata, regenerated from source files by setuptools.
-/*.egg-info
+rbda_src (Python)/*.egg-info
+
+rbda_src (Python)/*.pypirc

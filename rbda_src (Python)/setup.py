@@ -4,19 +4,16 @@ def readme():
     with open('README.md') as f:
         return f.read()
 
-setup(name='sym_rbda',
+setup(name='rbda',
       version='0.7.0',
       description='Numeric and symbolic functions for rigid body simulation and analysis',
-      url='http://github.com/...',
+      url='https://github.com/FabReyesMecha/rbda',
       author='Fabian Reyes',
       author_email='burgundianvolker@gmail.com',
       license='MIT',
-      packages=['sym_rbda'],
+      packages=['rbda'],
       install_requires=[
         'numpy',
-        'math',
-        'copy',
         'sympy',
-
       ],
       zip_safe=False)
