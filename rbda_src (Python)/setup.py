@@ -1,7 +1,7 @@
 from setuptools import setup
 
 setup(name='rbda',
-      version='0.9.0',
+      version='0.10.0',
       description='Numeric and symbolic functions for rigid body simulation and analysis',
       url='http://github.com/...',
       author='Fabian Reyes',

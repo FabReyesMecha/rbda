@@ -12,8 +12,7 @@ The latest version should be in ../moduletest/
 
 Usage:
 
-Download rbda.py into your computer. For example, if the file is in the directory
-'c:/users/reyes fabian/my cubby/python/python_v-rep/moduletest', then use the following code:
+Download rbda.py into your computer and change working directory to where rbda is located. Example:
 
 import os
 os.chdir('c:/users/reyes fabian/my cubby/python/python_v-rep/moduletest')
@@ -28,6 +27,9 @@ plu.rx(45, unit='deg')
 ----------------------------------------------------------------------------
 Log:
 
+[2018-03-17]:   Created v0.10
+                -innertProduct() added
+                -Fixed error inside calculation of inertial terms. gravity should be sym.Matrix when performing symbolic calculations
 [2018-03-16]:   Created v0.9
                 -LambdaWrapper() Class added for manipulation of symbolic expressions
 [2017-09-15]:   Created v0.7
@@ -93,14 +95,18 @@ from matplotlib.patches import Polygon, Circle
 
 class RBDA(object):
 
+    __version__ = '0.10.0'
+
     #Constructor
     def __init__(self):
-        self.__version__ = '0.8.0'
+        #self.__version__ = '0.8.0'
         self._modelCreated = False
+        self.M = []
 
     # Print current version
-    def version(self):
-        return self.__version__
+    @classmethod
+    def version(cls):
+        return cls.__version__
 
     #Created model
     '''
@@ -309,7 +315,7 @@ class RBDA(object):
             print("The set of generalized coordinates is: {}".format(self.stateSym))
             print("Currently, gravity is acting along the axis {}, represented as {}".format(self.model['gravityAxis'], self.model['inertialGrav']))
         else:
-            print("Model not createt yet. Use createModel() first.")
+            print("Model not created yet. Use createModel() first.")
 
 
     #three-dimensional rotation around the x axis. Works numerically or symbollicaly
@@ -706,9 +712,8 @@ class RBDA(object):
                 return output
 
         else:
-            #A.dot(B).dot(C)
-            #reduce(np.dot, [A1, A2, ..., An])
-            #multi_dot([A1d, B, C, D])#
+            # A.dot(B).dot(C) = reduce(np.dot, [A1, A2, ..., An])
+            # multi_dot([A1d, B, C, D])
 
             if transType.lower()=='similarity':
                 if inputType.lower()=='motion':
@@ -1354,7 +1359,8 @@ class RBDA(object):
                 f = list(sym.zeros(6,1) for i in range(nBodies))
 
                 tau = sym.zeros( dof,1 )
-                aGrav = self.model['inertialGrav']
+                #aGrav = self.model['inertialGrav']
+                aGrav = sym.Matrix( self.model['inertialGrav'] )
 
                 if fext.shape[0] == 0:
                     fext = list(sym.zeros(6,1) for i in range(nBodies))
@@ -1474,7 +1480,7 @@ class RBDA(object):
     gravityTerms is a boolean variable to decide if gravitational terms should be included in the output.
     Set as False if only Coriolis/centripetal effects are desired.
     '''
-    def HandC(self, q, qd, fext = [], gravityTerms = True, symbolic=False):
+    def HandC(self, q, qd, fext = [], gravityTerms = True, symbolic=False, simple=False):
 
         # Only continue if createModel has been called
         if self._modelCreated:
@@ -1501,9 +1507,10 @@ class RBDA(object):
                 Cor = sym.zeros( nBodies,1 )
 
                 if gravityTerms:
-                    aGrav = self.model['inertialGrav']
+                    #aGrav = self.model['inertialGrav'] # This does not work
+                    aGrav = sym.Matrix( self.model['inertialGrav'] )
                 else:
-                    aGrav = sym.zeros(6,1)
+                    aGrav = sym.zeros(6,1)  # This works.
 
                 if fext.shape[0] == 0:
                     fext = list(sym.zeros(6,1) for i in range(nBodies))
@@ -1560,6 +1567,10 @@ class RBDA(object):
                         j = parentArray[j]
                         H[i, j] = (S[j].T)*fh
                         H[j, i] = H[i, j]
+
+                if simple:
+                    H = sym.simplify(H)
+                    Cor = sym.simplify(Cor)
 
             #Otherwise, use numpy
             else:
@@ -1699,7 +1710,8 @@ class RBDA(object):
                 c = list(sym.zeros(6,1) for i in range(nBodies))
 
                 if gravityTerms:
-                    aGrav = self.model['inertialGrav']
+                    #aGrav = self.model['inertialGrav']
+                    aGrav = sym.Matrix( self.model['inertialGrav'] )
                 else:
                     aGrav = sym.zeros(6,1)
 
@@ -1977,6 +1989,108 @@ class RBDA(object):
         subs = self.tuplesFromLists(x,y)
         return self.symToNum(expr, subs)
 
+    # Create a function to return scalar metric from a vector and metric tensor <vec1, M vec2>
+    # vec1 and vec2 are vectors
+    # M is an optional metric tensor
+    # simple is a flag to indicate in simplification of the expression is desired
+    @staticmethod
+    def innerProduct(vec1, M=[], vec2=None, symbolic=False, simple=False):
+
+        if symbolic:
+
+            vec1 = sym.Matrix( vec1 )
+            M = sym.Matrix( M )
+            if vec2 == None:
+                vec2 = vec1
+            else:
+                vec2 = sym.Matrix( vec2 )
+
+            n = vec1.shape[0] # number of elements
+            if M.shape[0] == 0:
+                M = sym.eye(n)
+
+            if simple is True:
+                return sym.simplify(vec1.dot(M*vec2))
+            else:
+                return vec1.dot(M*vec2)
+
+        else:
+
+            vec1 = np.array( vec1 )
+            M = np.array( M )
+            if vec2 == None:
+                vec2 = vec1
+            else:
+                vec2 = np.array( vec2 )
+
+            n = vec1.shape[0] # number of elements
+            if M.shape[0] == 0:
+                M = np.identity(n)
+
+            return np.dot( vec1, np.dot(M, vec2) )
+
+    # Save an internal copy of inertia matrix
+    def saveInertiaMatrix(self, M):
+        self.M = sym.ImmutableMatrix(M)
+
+    # Create a matrix from a list of four sub-block Matrices
+    @staticmethod
+    def createBlockMatrix(blocks, symbolic=False):
+        if symbolic:
+
+            m11 = sym.Matrix( blocks[0][0] )
+            m12 = sym.Matrix( blocks[0][1] )
+            m21 = sym.Matrix( blocks[1][0] )
+            m22 = sym.Matrix( blocks[1][1] )
+
+            if (m11.shape[0] == m12.shape[0]) and  (m21.shape[0] == m22.shape[0]) and (m11.shape[1] == m21.shape[1]) and (m12.shape[1] == m22.shape[1]):
+                m1 = m11.row_join( m12)
+                m2 = m21.row_join( m22)
+                return m1.col_join(m2)
+            else:
+                print("Incompatible dimensions")
+                return []
+        else:
+
+            m11 = np.array( blocks[0][0] )
+            m12 = np.array( blocks[0][1] )
+            m21 = np.array( blocks[1][0] )
+            m22 = np.array( blocks[1][1] )
+
+            if (m11.shape[0] == m12.shape[0]) and  (m21.shape[0] == m22.shape[0]) and (m11.shape[1] == m21.shape[1]) and (m12.shape[1] == m22.shape[1]):
+                m1 = np.concatenate((m11, m12), axis=1)
+                m2 = np.concatenate((m21, m22), axis=1)
+                return np.concatenate((m1, m2), axis=0)
+            else:
+                print("Incompatible dimensions")
+                return []
+
+
+    # Projection onto the constrained subspace C
+    # T is the matrix that spans the constrained subspace
+    # I is the metric tensor
+    @staticmethod
+    def projectT(T, I, method='GE', symbolic=False, simple=False):
+        if symbolic:
+            T = sym.Matrix( T )
+            I = sym.Matrix( I )
+
+            TIT = (T.T)*I*T
+            invTIT = TIT.inv(method=method)
+
+            if simple:
+                return sym.simplify( invTIT*(T.T)*I )
+            else:
+                return invTIT*(T.T)*I
+
+        else:
+            T = np.array( T )
+            I = np.array( I )
+
+            TIT = reduce(np.dot, [np.transpose(T), I, T])
+            invTIT = np.linalg.inv( TIT )
+            return reduce(np.dot, [invTIT, np.transpose(T), I])
+
     #Oscillator. t:time. i:joint number.
     @staticmethod
     def oscillator(t, i, alpha, beta, gamma, omega):
@@ -2127,7 +2241,7 @@ class RBDA(object):
 
 # --------------------PARSING-----------------------
 
-    # Parse a string into a sympy expression
+    # Parse a string into a sympy matrix
     def toPython(self, inputString, oldValues=None, newValues=None, transpose=False):
 
         # Change type
